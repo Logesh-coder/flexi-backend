@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { connectDB } from './config/database';
 import logger from './config/logger';
-import { authenticateToken } from './middleware/auth';
+import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
 import userAuthRoutes from './routes/user.routes';
@@ -29,10 +29,10 @@ app.use((req, res, next) => {
 });
 
 // API routes
-app.use('/api/auth/user', userAuthRoutes);
+app.use('/api/user', userAuthRoutes);
 
 // Protected route
-app.get('/protected', authenticateToken, (req, res) => {
+app.get('/protected', authenticate, (req, res) => {
   res.json({ message: 'This is a protected route' });
 });
 

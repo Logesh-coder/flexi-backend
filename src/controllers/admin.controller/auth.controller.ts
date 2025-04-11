@@ -1,43 +1,43 @@
-import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
+import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import adminModel from "../../models/admin.models/auth.model";
 import { successResponse } from "../../utils/response.util";
 
-exports.registerAdmin = async (req : Request, res : Response, next : NextFunction) => {
-    try {
-        const { email, mobile, password } = req.body;
+exports.registerAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, mobile, password } = req.body;
 
-        const existingAdmin = await adminModel.findOne({ email, mobile });
+    const existingAdmin = await adminModel.findOne({ email, mobile });
 
-        if (existingAdmin) {
-        return res.status(409).json({
-            success: false,
-            message: "admin already registered with this email or password",
-        });
-        }
-
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        const newAdmin = new adminModel({
-        ...req.body,
-        password: hashedPassword,
-        });
-
-        await newAdmin.save();
-
-        res.status(201).json({
-        success: true,
-        message: "admin registered successfully",
-        data: newAdmin,
-        });
-    } catch (error) {
-        next(error)
+    if (existingAdmin) {
+      return res.status(409).json({
+        success: false,
+        message: "admin already registered with this email or password",
+      });
     }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const newAdmin = new adminModel({
+      ...req.body,
+      password: hashedPassword,
+    });
+
+    await newAdmin.save();
+
+    res.status(201).json({
+      success: true,
+      message: "admin registered successfully",
+      data: newAdmin,
+    });
+  } catch (error) {
+    next(error)
+  }
 };
 
-exports.loginAdmin = async (req : Request, res : Response, next : NextFunction) => {
+exports.loginAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
 
@@ -53,7 +53,7 @@ exports.loginAdmin = async (req : Request, res : Response, next : NextFunction) 
     const isPasswordMatch = await bcrypt.compare(password, adminLogin.password);
 
     if (!isPasswordMatch) {
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
         message: "Invalid email or password",
       });
@@ -74,11 +74,11 @@ exports.loginAdmin = async (req : Request, res : Response, next : NextFunction) 
       token,
     });
   } catch (error) {
-        next(error);
+    next(error);
   }
 };
 
-exports.verifyToken = async (req : Request, res : Response, next : NextFunction) => {
+exports.verifyToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -111,7 +111,7 @@ exports.verifyToken = async (req : Request, res : Response, next : NextFunction)
       });
     }
 
-    successResponse(res, 'Token is valid', 200)    
+    successResponse(res, 'Token is valid', 200)
   } catch (error) {
     next(error)
   }

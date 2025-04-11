@@ -7,34 +7,33 @@ const createJobForm = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
   },
   payRate: {
-    type: Number, 
+    type: Number,
     required: true
   },
   date: {
-    type: String, 
+    type: String,
     required: true
   },
   durationStartTime: {
-    type: String, 
+    type: String,
     required: true
   },
   durationEndTime: {
-    type: String, 
+    type: String,
     required: true
   },
-  location: {
-    type: String, 
+  area: {
+    type: String,
     required: true
   },
   city: {
-    type: String, 
+    type: String,
     required: true
   },
   landMark: {
-    type: String, 
+    type: String,
     required: true
   },
   createUserId: {

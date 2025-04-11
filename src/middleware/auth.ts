@@ -26,44 +26,22 @@ export const authenticate = async (
     const token = req.headers['authorization']?.split(' ')[1];
 
     if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401);
+      return errorResponse(res, 'Authorization token is required', 400);
     }
 
-    const { id: userId, type } = verifyToken(token);
+    const user = await userAuth.findOne({ token: token })
 
-    if (type === 'reset') {
-      return errorResponse(res, 'Invalid or expired token', 400);
-    }
-
-    let user = userId;
-
-    if (!user) {
-      user = await userAuth.findById(userId);
-
-      if (!user) {
-        return errorResponse(res, 'User not found', 401);
-      }
-    }
-
-    req.user = user;
-
-    // const cacheKey = `user:${getCache}`;
-    // Check if user exists in cache
-    // let user = getCache(cacheKey);
+    // let userId = user?._id;
 
     // if (!user) {
-    //   user = await UserModel.findById(userId);
+    //   user = await userAuth.findById(userId);
 
     //   if (!user) {
     //     return errorResponse(res, 'User not found', 401);
     //   }
-
-    //   // Cache user data for later requests
-    //   setCache(cacheKey, user);
     // }
-    // Set user data in request object
 
-    // req.user = user;
+    req.user = user;
 
     next();
   } catch (error) {

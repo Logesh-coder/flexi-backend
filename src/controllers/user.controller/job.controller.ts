@@ -6,20 +6,32 @@ import JobModule from "../../models/user.models/job.model";
 import { errorResponse, successResponse } from "../../utils/response.util";
 import findUserByToken from "../../utils/token-uncations.util";
 
-export const createJobForm = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { title, description, payRate, date, durationStartTime, durationEndTime, location, city, landMark } = req.body
+export interface CustomUser extends Document {
+  _id: string;
+  name: string;
+  email: string;
+  mobile: number;
+  token: string;
+}
 
-    const createUserId = req.user?._id
+export interface CustomRequest extends Request {
+  user?: CustomUser;
+}
+
+export const createJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body
+
+    const createUserId = req.user?._id;
 
     const newJob = new JobModule({
       title,
       description,
       date,
-      payRate,
+      payRate: budget,
       durationStartTime,
       durationEndTime,
-      location,
+      area,
       city,
       landMark,
       createUserId

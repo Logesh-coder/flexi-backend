@@ -38,6 +38,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
   try {
     const { email, password } = req.body;
 
+    console.log('login', email, password)
+
     const userLogin = await userAuth.findOne({ email });
 
     if (!userLogin) {
