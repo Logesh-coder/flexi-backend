@@ -5,10 +5,11 @@ const createJobForm = new mongoose.Schema({
     type: String,
     required: true
   },
+  slug: { type: String, required: true, unique: true },
   description: {
     type: String,
   },
-  payRate: {
+  budget: {
     type: Number,
     required: true
   },
@@ -37,8 +38,9 @@ const createJobForm = new mongoose.Schema({
     required: true
   },
   createUserId: {
-    type: String,
-    required: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'userAuthRegister',
+    required: true,
   }
 });
 

@@ -22,13 +22,33 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
   try {
     const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body
 
+    const id = req.user;
     const createUserId = req.user?._id;
+
+    const formattedDate = (() => {
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    })();
+
+    const generateSlug = (text: string) => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    };
+
+    const slug = generateSlug(title);
 
     const newJob = new JobModule({
       title,
+      slug,
       description,
-      date,
-      payRate: budget,
+      date: formattedDate,
+      budget,
       durationStartTime,
       durationEndTime,
       area,
@@ -39,7 +59,7 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
 
     await newJob.save();
 
-    return successResponse(res, 'Job created successfully', 201)
+    return successResponse(res, newJob, 201)
 
   } catch (error) {
     next(error)
@@ -131,69 +151,80 @@ export const userApplyJobForm = async (req: Request, res: Response, next: NextFu
 
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { limit } = req.query
+    const {
+      area,
+      city,
+      minBudget,
+      maxBudget,
+      search,
+      date,
+      page = 1,
+      limit = 10,
+    } = req.query;
 
-    const jobs = await JobModule.find().limit(limit);
+    const filters: any = {};
 
-    res.status(200).json({
-      success: true,
-      message: "Jobs data retrieved successfully",
-      data: jobs,
-    });
+    if (area) filters.area = area;
+    if (city) filters.city = city;
+    if (date) filters.date = date;
 
-    successResponse(res, 'Jobs data retrieved successfully', 200)
+    if (minBudget || maxBudget) {
+      filters.budget = {};
+      if (minBudget) filters.budget.$gte = Number(minBudget);
+      if (maxBudget) filters.budget.$lte = Number(maxBudget);
+    }
+
+    if (search) {
+      filters.title = { $regex: search, $options: 'i' }
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const jobs = await JobModule.find(filters)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await JobModule.countDocuments(filters);
+
+    successResponse(res, {
+      jobs,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+    }, 200);
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 export const getSingleJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. No token provided."
-      });
-    }
+    const { slug } = req.params;
 
-    if (!req.headers.authorization || !req.headers.authorization.startsWith("Bearer ")) {
-      return res.status(400).json({
-        success: false,
-        message: "Authorization header with Bearer token is required",
-      });
-    }
-
-    const findToken = await findUserByToken(token)
-
-    if (!findToken?.success) {
-      errorResponse(res, findToken.message, 400);
-    }
-
-    const singleId = req.params.id;
-
-    const job = await JobModule.findById(singleId);
+    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile');
 
     if (!job) {
       errorResponse(res, 'Job not found', 404);
     }
 
-    const application = await ApplyJobModel.findOne({
-      jobId: singleId,
-      userId: findToken?.user?._id
-    });
+    return successResponse(res, job, 200);
 
-    const findAlredyAppled = application ? true : false
+    // const application = await ApplyJobModel.findOne({
+    //   jobId: singleId,
+    //   userId: findToken?.user?._id
+    // });
 
-    res.status(200).json({
-      success: true,
-      message: "Successfully retrieved single job",
-      data: {
-        job,
-        alreadyApplied: findAlredyAppled
-      },
-    });
+    // const findAlredyAppled = application ? true : false
+
+    // res.status(200).json({
+    //   success: true,
+    //   message: "Successfully retrieved single job",
+    //   data: {
+    //     job,
+    //     alreadyApplied: findAlredyAppled
+    //   },
+    // });
 
   } catch (error) {
     next(error)

@@ -22,6 +22,7 @@ const userAuth = new mongoose.Schema(
       type: String,
       required: [true, "Please enter your password"],
     },
+    instaProfileLink: { type: String, },
     token: {
       type: String,
     },

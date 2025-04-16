@@ -4,6 +4,12 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import userAuth from "../../models/user.models/auth.model";
 import { errorResponse, successResponse } from "../../utils/response.util";
+import { CustomUser } from "./job.controller";
+
+export interface CustomRequest extends Request {
+  user?: CustomUser;
+}
+
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -211,5 +217,61 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 
   } catch (error) {
     next(error)
+  }
+};
+
+export const profile = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.user?._id;
+
+    const findUser = await userAuth.findOne({ _id: id }).select('email mobile name date_of_birth');
+
+    if (!findUser) {
+      return errorResponse(res, 'user not found', 500);
+    }
+
+    return successResponse(res, findUser, 200);
+
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const profileEdit = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.user?._id;
+
+    const { name, mobile, date_of_birth, instaProfileLink } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 'User ID is required', 400);
+    }
+
+    if (mobile) {
+      const userWithSameMobile = await userAuth.findOne({ mobile });
+
+      if (userWithSameMobile) {
+        return res.status(400).json({ message: 'Mobile number is already in use.' });
+      }
+    }
+
+    const updatedUser = await userAuth.findByIdAndUpdate(
+      id,
+      {
+        ...(name && { name }),
+        ...(mobile && { mobile }),
+        ...(date_of_birth && { date_of_birth }),
+        ...(instaProfileLink && { instaProfileLink }),
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    return successResponse(res, updatedUser, 200);
+  } catch (error) {
+    next(error);
   }
 };
