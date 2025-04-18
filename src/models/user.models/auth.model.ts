@@ -6,6 +6,9 @@ const userAuth = new mongoose.Schema(
       type: String,
       required: [true, "Please enter your name"],
     },
+    profileUrl: {
+      type: String,
+    },
     mobile: {
       type: Number,
       required: [true, "Please enter your number"],
@@ -21,6 +24,10 @@ const userAuth = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Please enter your password"],
+    },
+    isActive: {
+      type: Boolean,
+      default: false
     },
     instaProfileLink: { type: String, },
     token: {

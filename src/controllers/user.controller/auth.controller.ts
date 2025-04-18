@@ -247,11 +247,15 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
       return errorResponse(res, 'User ID is required', 400);
     }
 
-    if (mobile) {
-      const userWithSameMobile = await userAuth.findOne({ mobile });
+    const user = await userAuth.findById(id);
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
 
-      if (userWithSameMobile) {
-        return res.status(400).json({ message: 'Mobile number is already in use.' });
+    if (mobile && mobile !== user.mobile) {
+      const existingUser = await userAuth.findOne({ mobile });
+      if (existingUser) {
+        return errorResponse(res, 'Mobile number is already in use.', 400);
       }
     }
 
@@ -271,6 +275,39 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
     }
 
     return successResponse(res, updatedUser, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePssword = async (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.user?._id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return errorResponse(res, 'Current and new password are required', 400);
+    }
+
+    const user = await userAuth.findById(id).select('+password');
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return errorResponse(res, 'Current password is incorrect', 401);
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    return successResponse(res, 'Password updated successfully', 200);
   } catch (error) {
     next(error);
   }

@@ -182,7 +182,8 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
 
     const jobs = await JobModule.find(filters)
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .sort({ createdAt: -1 });
 
     const total = await JobModule.countDocuments(filters);
 
