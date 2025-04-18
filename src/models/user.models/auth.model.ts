@@ -25,6 +25,10 @@ const userAuth = new mongoose.Schema(
       type: String,
       required: [true, "Please enter your password"],
     },
+    salary: {
+      type: Number,
+      default: 250
+    },
     isActive: {
       type: Boolean,
       default: false

@@ -203,7 +203,7 @@ export const getSingleJobs = async (req: Request, res: Response, next: NextFunct
 
     const { slug } = req.params;
 
-    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile');
+    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile ');
 
     if (!job) {
       errorResponse(res, 'Job not found', 404);

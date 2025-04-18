@@ -224,7 +224,7 @@ export const profile = async (req: CustomRequest, res: Response, next: NextFunct
   try {
     const id = req.user?._id;
 
-    const findUser = await userAuth.findOne({ _id: id }).select('email mobile name date_of_birth');
+    const findUser = await userAuth.findOne({ _id: id })
 
     if (!findUser) {
       return errorResponse(res, 'user not found', 500);
@@ -241,7 +241,7 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
   try {
     const id = req.user?._id;
 
-    const { name, mobile, date_of_birth, instaProfileLink } = req.body;
+    const { name, mobile, date_of_birth, instaProfileLink, salary, profileUrl } = req.body;
 
     if (!id) {
       return errorResponse(res, 'User ID is required', 400);
@@ -266,6 +266,8 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
         ...(mobile && { mobile }),
         ...(date_of_birth && { date_of_birth }),
         ...(instaProfileLink && { instaProfileLink }),
+        ...(salary && { salary }),
+        ...(profileUrl && { profileUrl }),
       },
       { new: true }
     );
