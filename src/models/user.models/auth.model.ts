@@ -29,6 +29,15 @@ const userAuth = new mongoose.Schema(
       type: Number,
       default: 250
     },
+    city: {
+      type: String,
+    },
+    area: {
+      type: String,
+    },
+    domain: {
+      type: String,
+    },
     isActive: {
       type: Boolean,
       default: false

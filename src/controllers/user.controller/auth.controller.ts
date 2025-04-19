@@ -10,7 +10,6 @@ export interface CustomRequest extends Request {
   user?: CustomUser;
 }
 
-
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, mobile, password, name, date_of_birth } = req.body;
@@ -241,7 +240,7 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
   try {
     const id = req.user?._id;
 
-    const { name, mobile, date_of_birth, instaProfileLink, salary, profileUrl } = req.body;
+    const { name, mobile, date_of_birth, instaProfileLink, salary, profileUrl, city, area } = req.body;
 
     if (!id) {
       return errorResponse(res, 'User ID is required', 400);
@@ -267,6 +266,8 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
         ...(date_of_birth && { date_of_birth }),
         ...(instaProfileLink && { instaProfileLink }),
         ...(salary && { salary }),
+        ...(city && { city }),
+        ...(area && { area }),
         ...(profileUrl && { profileUrl }),
       },
       { new: true }
@@ -275,6 +276,14 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
     if (!updatedUser) {
       return errorResponse(res, 'User not found', 404);
     }
+
+    const checkUpdateUser = await userAuth.findById(id);
+
+    if (checkUpdateUser?.city || checkUpdateUser?.area || checkUpdateUser?.salary || checkUpdateUser?.domain) {
+      checkUpdateUser.isActive = true
+      await checkUpdateUser.save();
+    }
+
 
     return successResponse(res, updatedUser, 200);
   } catch (error) {
@@ -310,6 +319,54 @@ export const updatePssword = async (
     await user.save();
 
     return successResponse(res, 'Password updated successfully', 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const {
+      area,
+      city,
+      minBudget,
+      maxBudget,
+      search,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const filters: any = {};
+
+    if (area) filters.area = area;
+    if (city) filters.city = city;
+
+    if (minBudget || maxBudget) {
+      filters.budget = {};
+      if (minBudget) filters.salary.$gte = Number(minBudget);
+      if (maxBudget) filters.salary.$lte = Number(maxBudget);
+    }
+
+    if (search) {
+      filters.name = { $regex: search, $options: 'i' }
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const workers = await userAuth.find(filters)
+      .skip(skip)
+      .limit(Number(limit))
+      .sort({ createdAt: -1 })
+      .select('-password -token -__v');
+
+    const total = await userAuth.countDocuments(filters);
+
+    successResponse(res, {
+      workers,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+    }, 200);
   } catch (error) {
     next(error);
   }
