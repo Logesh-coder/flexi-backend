@@ -158,10 +158,12 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       maxBudget,
       search,
       date,
+      id,
       page = 1,
       limit = 10,
     } = req.query;
 
+    // const userId = req.user?._id
     const filters: any = {};
 
     if (area) filters.area = area;

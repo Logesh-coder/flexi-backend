@@ -6,9 +6,6 @@ const userAuth = new mongoose.Schema(
       type: String,
       required: [true, "Please enter your name"],
     },
-    profileUrl: {
-      type: String,
-    },
     mobile: {
       type: Number,
       required: [true, "Please enter your number"],
@@ -37,6 +34,11 @@ const userAuth = new mongoose.Schema(
     },
     domain: {
       type: String,
+    },
+    slug: {
+      type: String,
+      required: true,
+      unique: true
     },
     isActive: {
       type: Boolean,

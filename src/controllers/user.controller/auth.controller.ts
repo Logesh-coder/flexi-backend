@@ -23,12 +23,20 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // remove special chars
+      .replace(/\s+/g, '-')      // spaces to hyphens
+      .replace(/--+/g, '-');
+
     const newUser = new userAuth({
       name,
       date_of_birth,
       email,
       mobile,
       password: hashedPassword,
+      slug
     });
 
     await newUser.save();
@@ -42,8 +50,6 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
-
-    console.log('login', email, password)
 
     const userLogin = await userAuth.findOne({ email });
 
@@ -72,7 +78,14 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     userLogin.token = token;
     await userLogin.save();
 
-    successResponse(res, token, 200);
+    console.log('userLogin', userLogin)
+
+    const data = {
+      token,
+      isActive: userLogin.isActive
+    }
+
+    successResponse(res, data, 200);
 
   } catch (error) {
     next(error)
@@ -240,7 +253,7 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
   try {
     const id = req.user?._id;
 
-    const { name, mobile, date_of_birth, instaProfileLink, salary, profileUrl, city, area } = req.body;
+    const { name, mobile, date_of_birth, instaProfileLink, salary, domain, city, area } = req.body;
 
     if (!id) {
       return errorResponse(res, 'User ID is required', 400);
@@ -268,7 +281,7 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
         ...(salary && { salary }),
         ...(city && { city }),
         ...(area && { area }),
-        ...(profileUrl && { profileUrl }),
+        ...(domain && { domain }),
       },
       { new: true }
     );
@@ -336,7 +349,7 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
       limit = 10,
     } = req.query;
 
-    const filters: any = {};
+    const filters: any = { isActive: true };
 
     if (area) filters.area = area;
     if (city) filters.city = city;
@@ -371,3 +384,20 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { slug } = req.params;
+
+    const findUser = await userAuth.findOne({ slug: slug }).select('-password -__v -token')
+
+    if (!findUser) {
+      return errorResponse(res, 'worker not found', 500);
+    }
+
+    return successResponse(res, findUser, 200);
+
+  } catch (error) {
+    next(error)
+  }
+}
