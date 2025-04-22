@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import nodemailer from "nodemailer";
 import ApplyJobModel from "../../models/user.models/apply-job.model";
-import userAuthModul from "../../models/user.models/auth.model";
+import { default as userAuth, default as userAuthModul } from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
 import { errorResponse, successResponse } from "../../utils/response.util";
 import findUserByToken from "../../utils/token-uncations.util";
@@ -163,9 +163,18 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       limit = 10,
     } = req.query;
 
-    // const userId = req.user?._id
+    const token = req.headers['authorization']?.split(' ')[1];
+
+    console.log('id', id)
+
+    let user
+    if (token) {
+      user = await userAuth.findOne({ token: token }).select('_id')
+    }
+
     const filters: any = {};
 
+    if (id == 'true') filters.createUserId = user?._id;
     if (area) filters.area = area;
     if (city) filters.city = city;
     if (date) filters.date = date;
