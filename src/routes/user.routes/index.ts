@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
-import { createJobForm, getJobs, getSingleJobs, userApplyJobForm } from '../../controllers/user.controller/job.controller';
+import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
+import { addToWishlist, getWishlist, removeFromWishlist } from '../../controllers/user.controller/wishlist.controller';
 import { authenticate } from '../../middleware/auth';
 const router = Router();
 
@@ -18,6 +19,10 @@ router.get('/worker/:slug', getSingleWorker);
 router.post('/job-add', authenticate, createJobForm);
 router.get('/job', getJobs);
 router.get('/job/:slug', getSingleJobs);
-router.post('/job-apply', authenticate, userApplyJobForm);
+router.put('/job/:slug', authenticate, updateJobForm);
+
+router.post("/addWishlist", authenticate, addToWishlist);
+router.get("/wishlist", authenticate, getWishlist);
+router.delete("/remove", authenticate, removeFromWishlist);
 
 export default router;    

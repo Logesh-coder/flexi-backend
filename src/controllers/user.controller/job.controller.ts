@@ -1,22 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import nodemailer from "nodemailer";
-import ApplyJobModel from "../../models/user.models/apply-job.model";
-import { default as userAuth, default as userAuthModul } from "../../models/user.models/auth.model";
+import { default as userAuth } from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
+import wishlist from "../../models/user.models/wishlist";
 import { errorResponse, successResponse } from "../../utils/response.util";
-import findUserByToken from "../../utils/token-uncations.util";
-
-export interface CustomUser extends Document {
-  _id: string;
-  name: string;
-  email: string;
-  mobile: number;
-  token: string;
-}
-
-export interface CustomRequest extends Request {
-  user?: CustomUser;
-}
+import { CustomRequest } from "./auth.controller";
 
 export const createJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -66,89 +53,6 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
   }
 }
 
-export const userApplyJobForm = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
-
-    if (!token) {
-      errorResponse(res, 'Token is missing', 400)
-    }
-
-    const findUser = await findUserByToken(token);
-
-    if (!findUser?.success) {
-      errorResponse(res, findUser?.message, 400)
-    }
-
-    const userId = findUser?.user?._id;
-
-    const { applyJob_id, payYourAmount } = req.body;
-
-    const existingApplication = await ApplyJobModel.findOne({ userId, applyJob_id });
-
-    if (existingApplication) {
-      errorResponse(res, 'You have already submitted an application for this job.', 400)
-    }
-
-    const storeApplyJobs = new ApplyJobModel({
-      applyJob_id,
-      payYourAmount,
-      userId
-    });
-
-    await storeApplyJobs.save();
-
-    const findJobOwner = await JobModule.findOne({ _id: applyJob_id });
-
-    if (!findJobOwner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job not found'
-      });
-    }
-
-    const findJobPostUserData = await userAuthModul.findOne({ _id: findJobOwner?.createUserId });
-
-    if (!findJobPostUserData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job owner not found'
-      });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USERNAME,
-        pass: process.env.MAIL_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.MAIL_USERNAME,
-      to: findJobPostUserData.email,
-      subject: "Applied candidate in your job",
-      html: `<h2>Please check your job</h2>
-              <h3> Job Title: ${findJobOwner?.title} </h3>
-              <h3>Click this link: <a href="${process.env.WEBSITE_LINK}">${process.env.WEBSITE_LINK}</a></h3>`,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    return res.status(201).json({
-      success: true,
-      message: 'Job application submitted successfully',
-      data: storeApplyJobs
-    });
-
-  } catch (error) {
-    next(error)
-  }
-};
-
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -165,11 +69,9 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
 
     const token = req.headers['authorization']?.split(' ')[1];
 
-    console.log('id', id)
-
-    let user
+    let user;
     if (token) {
-      user = await userAuth.findOne({ token: token }).select('_id')
+      user = await userAuth.findOne({ token }).select('_id'); // Assuming `userAuth` is your User model
     }
 
     const filters: any = {};
@@ -186,15 +88,49 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     }
 
     if (search) {
-      filters.title = { $regex: search, $options: 'i' }
+      filters.title = { $regex: search, $options: 'i' };
     }
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const jobs = await JobModule.find(filters)
-      .skip(skip)
-      .limit(Number(limit))
-      .sort({ createdAt: -1 });
+    const jobs = await JobModule.aggregate([
+      {
+        $match: filters,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: Number(limit),
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $lookup: {
+          from: 'wishlists',
+          localField: '_id',
+          foreignField: 'jobId',
+          as: 'wishlist',
+        },
+      },
+      {
+        $addFields: {
+          isSaved: {
+            $cond: {
+              if: { $gt: [{ $size: '$wishlist' }, 0] },
+              then: true,
+              else: false,
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          wishlist: 0,
+        },
+      },
+    ]);
 
     const total = await JobModule.countDocuments(filters);
 
@@ -220,25 +156,80 @@ export const getSingleJobs = async (req: Request, res: Response, next: NextFunct
       errorResponse(res, 'Job not found', 404);
     }
 
+    const token = req.headers['authorization']?.split(' ')[1];
+
+    let user;
+    if (token) {
+      user = await userAuth.findOne({ token }).select('_id');
+    }
+
+    const isSaved = user ? await wishlist.exists({ _id: user?._id, wishlist: job._id }) : false;
+
+    job.isSaved = isSaved;
+
     return successResponse(res, job, 200);
-
-    // const application = await ApplyJobModel.findOne({
-    //   jobId: singleId,
-    //   userId: findToken?.user?._id
-    // });
-
-    // const findAlredyAppled = application ? true : false
-
-    // res.status(200).json({
-    //   success: true,
-    //   message: "Successfully retrieved single job",
-    //   data: {
-    //     job,
-    //     alreadyApplied: findAlredyAppled
-    //   },
-    // });
 
   } catch (error) {
     next(error)
+  }
+};
+
+export const updateJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { slug } = req.params;
+    const {
+      title,
+      description,
+      budget,
+      date,
+      durationStartTime,
+      durationEndTime,
+      area,
+      city,
+      landMark
+    } = req.body;
+
+    const formattedDate = (() => {
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    })();
+
+    const generateSlug = (text: string) => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    };
+
+    const updatedSlug = generateSlug(title);
+
+    const updatedJob = await JobModule.findOneAndUpdate(
+      { slug },
+      {
+        title,
+        slug: updatedSlug,
+        description,
+        date: formattedDate,
+        budget,
+        durationStartTime,
+        durationEndTime,
+        area,
+        city,
+        landMark,
+      },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedJob) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    return successResponse(res, updatedJob, 200);
+  } catch (error) {
+    next(error);
   }
 };

@@ -3,8 +3,8 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import userAuth from "../../models/user.models/auth.model";
+import { CustomUser } from "../../type/user-type";
 import { errorResponse, successResponse } from "../../utils/response.util";
-import { CustomUser } from "./job.controller";
 
 export interface CustomRequest extends Request {
   user?: CustomUser;
