@@ -9,8 +9,12 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
   try {
     const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body
 
-    const id = req.user;
+    const isActive = req.user?.isActive;
     const createUserId = req.user?._id;
+
+    if (!isActive) {
+      return errorResponse(res, 'Your profile is not active. Please activate your account.', 500)
+    }
 
     const formattedDate = (() => {
       const d = new Date(date);
@@ -150,24 +154,23 @@ export const getSingleJobs = async (req: Request, res: Response, next: NextFunct
 
     const { slug } = req.params;
 
-    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile ');
+    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile ').lean();
 
     if (!job) {
       errorResponse(res, 'Job not found', 404);
     }
 
     const token = req.headers['authorization']?.split(' ')[1];
+    let isSaved = false;
 
-    let user;
     if (token) {
-      user = await userAuth.findOne({ token }).select('_id');
+      const user = await userAuth.findOne({ token }).select('_id');
+      if (user) {
+        const saved = await wishlist.exists({ userId: user._id, jobId: job._id });
+        isSaved = !!saved;
+      }
     }
-
-    const isSaved = user ? await wishlist.exists({ _id: user?._id, wishlist: job._id }) : false;
-
-    job.isSaved = isSaved;
-
-    return successResponse(res, job, 200);
+    return successResponse(res, { ...job, isSaved }, 200);
 
   } catch (error) {
     next(error)

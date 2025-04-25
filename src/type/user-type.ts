@@ -4,6 +4,7 @@ export interface CustomUser extends Document {
     email: string;
     mobile: number;
     token: string;
+    isActive: string
 }
 
 export interface CustomRequest extends Request {
