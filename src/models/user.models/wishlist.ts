@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const wishlist = new mongoose.Schema({
+const wishlistSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
@@ -13,5 +13,21 @@ const wishlist = new mongoose.Schema({
     },
 }, { timestamps: true });
 
-module.exports = mongoose.model('Wishlist', wishlist)
-export default wishlist
+const userWishlistSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'userAuthRegister'
+    },
+    workerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'Worker'
+    },
+}, { timestamps: true });
+
+const wishlist = mongoose.model('Wishlist', wishlistSchema);
+const userWishlist = mongoose.model('UserWishlist', userWishlistSchema);
+
+export { userWishlist, wishlist };
+

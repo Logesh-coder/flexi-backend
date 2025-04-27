@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { default as userAuth } from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
-import wishlist from "../../models/user.models/wishlist";
+import { wishlist } from "../../models/user.models/wishlist";
 import { errorResponse, successResponse } from "../../utils/response.util";
 import { CustomRequest } from "./auth.controller";
 
@@ -75,8 +75,10 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
 
     let user;
     if (token) {
-      user = await userAuth.findOne({ token }).select('_id'); // Assuming `userAuth` is your User model
+      user = await userAuth.findOne({ token }).select('_id');
     }
+
+    console.log('user', user)
 
     const filters: any = {};
 
@@ -102,19 +104,30 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
         $match: filters,
       },
       {
+        $sort: { createdAt: -1 },
+      },
+      {
         $skip: skip,
       },
       {
         $limit: Number(limit),
       },
       {
-        $sort: { createdAt: -1 },
-      },
-      {
         $lookup: {
           from: 'wishlists',
-          localField: '_id',
-          foreignField: 'jobId',
+          let: { jobId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$jobId', '$$jobId'] },
+                    { $eq: ['$userId', user?._id] }, // Only match current user's wishlist
+                  ],
+                },
+              },
+            },
+          ],
           as: 'wishlist',
         },
       },
@@ -127,6 +140,32 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
               else: false,
             },
           },
+        },
+      },
+      {
+        $lookup: {
+          from: 'userauthregisters', // your User collection
+          let: { userId: '$createUserId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$userId'] },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                mobile: 1, // Only include mobile number
+              },
+            },
+          ],
+          as: 'createUser',
+        },
+      },
+      {
+        $unwind: {
+          path: '$createUser',
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
