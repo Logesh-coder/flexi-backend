@@ -6,7 +6,7 @@ import logger from './config/logger';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
-import userAuthRoutes from './routes/user.routes';
+import userAuthRoutes from './routes/index';
 
 dotenv.config();
 connectDB();
@@ -29,7 +29,8 @@ app.use((req, res, next) => {
 });
 
 // API routes
-app.use('/api/user', userAuthRoutes);
+// app.use('/api/user', userAuthRoutes);
+app.use('/api', userAuthRoutes);
 
 // Protected route
 app.get('/protected', authenticate, (req, res) => {
