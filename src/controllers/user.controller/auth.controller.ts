@@ -337,55 +337,6 @@ export const updatePssword = async (
   }
 };
 
-// export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       area,
-//       city,
-//       minBudget,
-//       maxBudget,
-//       search,
-//       page = 1,
-//       limit = 10,
-//     } = req.query;
-
-//     const filters: any = { isActive: true };
-
-//     if (area) filters.area = area;
-//     if (city) filters.city = city;
-
-//     if (minBudget || maxBudget) {
-//       filters.budget = {};
-//       if (minBudget) filters.salary.$gte = Number(minBudget);
-//       if (maxBudget) filters.salary.$lte = Number(maxBudget);
-//     }
-
-//     if (search) {
-//       filters.domain = { $regex: search, $options: 'i' }
-//     }
-
-//     const skip = (Number(page) - 1) * Number(limit);
-
-//     const workers = await userAuth.find(filters)
-//       .skip(skip)
-//       .limit(Number(limit))
-//       .sort({ createdAt: -1 })
-//       .select('-password -token -__v');
-
-//     const total = await userAuth.countDocuments(filters);
-
-//     successResponse(res, {
-//       workers,
-//       total,
-//       page: Number(page),
-//       pages: Math.ceil(total / Number(limit)),
-//     }, 200);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
 export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -463,7 +414,6 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
-
 
 export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
