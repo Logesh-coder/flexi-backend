@@ -78,11 +78,9 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       user = await userAuth.findOne({ token }).select('_id');
     }
 
-    console.log('user', user)
-
     const filters: any = {};
 
-    if (id == 'true') filters.createUserId = user?._id;
+    if (id === 'true') filters.createUserId = user?._id;
     if (area) filters.area = area;
     if (city) filters.city = city;
     if (date) filters.date = date;
@@ -93,25 +91,34 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       if (maxBudget) filters.budget.$lte = Number(maxBudget);
     }
 
+    const skip = (Number(page) - 1) * Number(limit);
+    const aggregationPipeline: any[] = [];
+
     if (search) {
-      filters.title = { $regex: search, $options: 'i' };
+      aggregationPipeline.push({
+        $search: {
+          index: 'jobSearchIndex',
+          text: {
+            query: search,
+            path: 'title',
+            fuzzy: {
+              maxEdits: 2,
+              prefixLength: 100,
+            },
+          },
+        },
+      });
+
+      // You can still apply filters after search
+      aggregationPipeline.push({ $match: filters });
+    } else {
+      aggregationPipeline.push({ $match: filters });
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
-
-    const jobs = await JobModule.aggregate([
-      {
-        $match: filters,
-      },
-      {
-        $sort: { createdAt: -1 },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: Number(limit),
-      },
+    aggregationPipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) },
       {
         $lookup: {
           from: 'wishlists',
@@ -122,7 +129,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
                 $expr: {
                   $and: [
                     { $eq: ['$jobId', '$$jobId'] },
-                    { $eq: ['$userId', user?._id] }, // Only match current user's wishlist
+                    { $eq: ['$userId', user?._id] },
                   ],
                 },
               },
@@ -144,7 +151,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       },
       {
         $lookup: {
-          from: 'userauthregisters', // your User collection
+          from: 'userauthregisters',
           let: { userId: '$createUserId' },
           pipeline: [
             {
@@ -155,7 +162,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
             {
               $project: {
                 _id: 0,
-                mobile: 1, // Only include mobile number
+                mobile: 1,
               },
             },
           ],
@@ -172,17 +179,23 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
         $project: {
           wishlist: 0,
         },
-      },
-    ]);
+      }
+    );
 
-    const total = await JobModule.countDocuments(filters);
+    const jobs = await JobModule.aggregate(aggregationPipeline);
 
-    successResponse(res, {
+    // For search, we can't use countDocuments directly
+    const total = search
+      ? jobs.length // Approximate, since we can't use $count after $search easily
+      : await JobModule.countDocuments(filters);
+
+    return successResponse(res, {
       jobs,
       total,
       page: Number(page),
       pages: Math.ceil(total / Number(limit)),
     }, 200);
+
   } catch (error) {
     next(error);
   }

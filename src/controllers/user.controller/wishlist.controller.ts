@@ -164,7 +164,6 @@ export const getWorkerWishlist = async (req: CustomRequest, res: Response, next:
             },
         ]);
 
-
         const totalItems = await userWishlist.countDocuments({ userId });
         const totalPages = Math.ceil(totalItems / Number(limit));
 
