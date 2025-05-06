@@ -3,6 +3,7 @@ import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profil
 import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
 import { addToWishlist, addToWorkerWishlist, getWishlist, getWorkerWishlist, removeFromWishlist, removeFromWorkerWishlist } from '../../controllers/user.controller/wishlist.controller';
 import { authenticate } from '../../middleware/auth';
+
 const router = Router();
 
 router.post('/register', registerUser);
