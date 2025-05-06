@@ -1,8 +1,9 @@
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import { connectDB } from './config/database';
 import logger from './config/logger';
+import { initializeDatabase } from './initServer';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
@@ -14,11 +15,28 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 8000;
 
-const corsOptions = {
-  origin: 'http://localhost:3000',
+// const corsOptions = {
+//   origin: 'http://localhost:3000',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   credentials: true, // Allow cookies and headers
+// };
+// app.use(cors(corsOptions));
+
+
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+
+const corsOptions: CorsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true, // Allow cookies and headers
+  credentials: true,
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -66,3 +84,5 @@ app.listen(port, () => {
   const host = 'http://localhost';
   logger.info(`Server is running on ${host}:${port}`);
 });
+
+initializeDatabase()

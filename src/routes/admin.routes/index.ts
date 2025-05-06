@@ -3,7 +3,7 @@ import { loginAdmin, verifyToken } from '../../controllers/admin.controller/auth
 
 const router = Router();
 
-router.post('/verify', verifyToken);
+router.get('/verify', verifyToken);
 router.post('/login', loginAdmin);
 
 export default router;    

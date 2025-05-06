@@ -1,41 +1,6 @@
-import { bcrypt } from 'bcrypt';
-import { connectDB, disconnectDB } from './config/database';
+import bcrypt from 'bcrypt';
 import logger from './config/logger';
 import adminAuth from './models/admin.models/auth.model';
-
-
-// exports.registerAdmin = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const { email, mobile, password } = req.body;
-
-//         const existingAdmin = await adminModel.findOne({ email, mobile });
-
-//         if (existingAdmin) {
-//             return res.status(409).json({
-//                 success: false,
-//                 message: "admin already registered with this email or password",
-//             });
-//         }
-
-//         const saltRounds = 10;
-//         const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-//         const newAdmin = new adminModel({
-//             ...req.body,
-//             password: hashedPassword,
-//         });
-
-//         await newAdmin.save();
-
-//         res.status(201).json({
-//             success: true,
-//             message: "admin registered successfully",
-//             data: newAdmin,
-//         });
-//     } catch (error) {
-//         next(error)
-//     }
-// };
 
 export const createAdmin = async () => {
     try {
@@ -61,13 +26,12 @@ export const createAdmin = async () => {
         }
         return adminUser;
     } catch (error: any) {
-        throw new Error('Error in creating admin user', error);
+        throw new Error('Error in creating admin user: ' + error.message);
     }
 };
 
-const initializeDatabase = async () => {
+export const initializeDatabase = async () => {
     try {
-        await connectDB();
 
         await createAdmin();
         logger.info('Database initialization completed successfully');
@@ -75,8 +39,6 @@ const initializeDatabase = async () => {
         logger.error('Database initialization failed:', error);
         process.exit(1);
     } finally {
-        await disconnectDB();
+        // await disconnectDB();
     }
 };
-
-initializeDatabase();

@@ -29,7 +29,7 @@ export const loginAdmin = async (req: Request, res: Response, next: NextFunction
 
     adminLogin.token = token;
     await adminLogin.save();
-    return successResponse(res, 'Admin logged in successfully', 200)
+    return successResponse(res, token, 200)
   } catch (error) {
     next(error);
   }
