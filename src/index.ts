@@ -1,12 +1,14 @@
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import serverless from 'serverless-http';
 import { connectDB } from './config/database';
 import logger from './config/logger';
+import { initializeDatabase } from './initServer';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
-import userAuthRoutes from './routes/user.routes';
+import userAuthRoutes from './routes/index';
 
 dotenv.config();
 connectDB();
@@ -14,11 +16,20 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 8000;
 
-const corsOptions = {
-  origin: 'http://localhost:3000',
+const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
+
+const corsOptions: CorsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true, // Allow cookies and headers
+  credentials: true,
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -29,7 +40,8 @@ app.use((req, res, next) => {
 });
 
 // API routes
-app.use('/api/user', userAuthRoutes);
+// app.use('/api/user', userAuthRoutes);
+app.use('/api', userAuthRoutes);
 
 // Protected route
 app.get('/protected', authenticate, (req, res) => {
@@ -56,12 +68,14 @@ app.get('/health', async (req, res) => {
 
 // Error-handling middleware
 app.use(errorHandler);
-
-// Route not found middleware (MUST be at the END)
 app.use(notFoundHandler);
 
-// Start the server
-app.listen(port, () => {
-  const host = 'http://localhost';
-  logger.info(`Server is running on ${host}:${port}`);
-});
+module.exports.handler = serverless(app);
+
+// // Start the server
+// app.listen(port, () => {
+//   const host = 'http://localhost';
+//   logger.info(`Server is running on ${host}:${port}`);
+// });
+
+initializeDatabase()

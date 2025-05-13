@@ -42,7 +42,7 @@ const createJobForm = new mongoose.Schema({
     ref: 'userAuthRegister',
     required: true,
   }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model("Job", createJobForm);
 export default createJobForm

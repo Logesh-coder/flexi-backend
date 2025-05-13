@@ -1,29 +1,20 @@
 import { NextFunction, Request, Response } from "express";
-import nodemailer from "nodemailer";
-import ApplyJobModel from "../../models/user.models/apply-job.model";
-import userAuthModul from "../../models/user.models/auth.model";
+import { default as userAuth } from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
+import { wishlist } from "../../models/user.models/wishlist";
 import { errorResponse, successResponse } from "../../utils/response.util";
-import findUserByToken from "../../utils/token-uncations.util";
-
-export interface CustomUser extends Document {
-  _id: string;
-  name: string;
-  email: string;
-  mobile: number;
-  token: string;
-}
-
-export interface CustomRequest extends Request {
-  user?: CustomUser;
-}
+import { CustomRequest } from "./auth.controller";
 
 export const createJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body
 
-    const id = req.user;
+    const isActive = req.user?.isActive;
     const createUserId = req.user?._id;
+
+    if (!isActive) {
+      return errorResponse(res, 'Your profile is not active. Please activate your account.', 500)
+    }
 
     const formattedDate = (() => {
       const d = new Date(date);
@@ -66,89 +57,6 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
   }
 }
 
-export const userApplyJobForm = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
-
-    if (!token) {
-      errorResponse(res, 'Token is missing', 400)
-    }
-
-    const findUser = await findUserByToken(token);
-
-    if (!findUser?.success) {
-      errorResponse(res, findUser?.message, 400)
-    }
-
-    const userId = findUser?.user?._id;
-
-    const { applyJob_id, payYourAmount } = req.body;
-
-    const existingApplication = await ApplyJobModel.findOne({ userId, applyJob_id });
-
-    if (existingApplication) {
-      errorResponse(res, 'You have already submitted an application for this job.', 400)
-    }
-
-    const storeApplyJobs = new ApplyJobModel({
-      applyJob_id,
-      payYourAmount,
-      userId
-    });
-
-    await storeApplyJobs.save();
-
-    const findJobOwner = await JobModule.findOne({ _id: applyJob_id });
-
-    if (!findJobOwner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job not found'
-      });
-    }
-
-    const findJobPostUserData = await userAuthModul.findOne({ _id: findJobOwner?.createUserId });
-
-    if (!findJobPostUserData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job owner not found'
-      });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USERNAME,
-        pass: process.env.MAIL_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.MAIL_USERNAME,
-      to: findJobPostUserData.email,
-      subject: "Applied candidate in your job",
-      html: `<h2>Please check your job</h2>
-              <h3> Job Title: ${findJobOwner?.title} </h3>
-              <h3>Click this link: <a href="${process.env.WEBSITE_LINK}">${process.env.WEBSITE_LINK}</a></h3>`,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    return res.status(201).json({
-      success: true,
-      message: 'Job application submitted successfully',
-      data: storeApplyJobs
-    });
-
-  } catch (error) {
-    next(error)
-  }
-};
-
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -158,12 +66,21 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       maxBudget,
       search,
       date,
+      id,
       page = 1,
       limit = 10,
     } = req.query;
 
+    const token = req.headers['authorization']?.split(' ')[1];
+
+    let user;
+    if (token) {
+      user = await userAuth.findOne({ token }).select('_id');
+    }
+
     const filters: any = {};
 
+    if (id === 'true') filters.createUserId = user?._id;
     if (area) filters.area = area;
     if (city) filters.city = city;
     if (date) filters.date = date;
@@ -174,24 +91,111 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       if (maxBudget) filters.budget.$lte = Number(maxBudget);
     }
 
+    const skip = (Number(page) - 1) * Number(limit);
+    const aggregationPipeline: any[] = [];
+
     if (search) {
-      filters.title = { $regex: search, $options: 'i' }
+      aggregationPipeline.push({
+        $search: {
+          index: 'jobSearchIndex',
+          text: {
+            query: search,
+            path: 'title',
+            fuzzy: {
+              maxEdits: 2,
+              prefixLength: 100,
+            },
+          },
+        },
+      });
+
+      // You can still apply filters after search
+      aggregationPipeline.push({ $match: filters });
+    } else {
+      aggregationPipeline.push({ $match: filters });
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
+    aggregationPipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) },
+      {
+        $lookup: {
+          from: 'wishlists',
+          let: { jobId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$jobId', '$$jobId'] },
+                    { $eq: ['$userId', user?._id] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'wishlist',
+        },
+      },
+      {
+        $addFields: {
+          isSaved: {
+            $cond: {
+              if: { $gt: [{ $size: '$wishlist' }, 0] },
+              then: true,
+              else: false,
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'userauthregisters',
+          let: { userId: '$createUserId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$userId'] },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                mobile: 1,
+              },
+            },
+          ],
+          as: 'createUser',
+        },
+      },
+      {
+        $unwind: {
+          path: '$createUser',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          wishlist: 0,
+        },
+      }
+    );
 
-    const jobs = await JobModule.find(filters)
-      .skip(skip)
-      .limit(Number(limit));
+    const jobs = await JobModule.aggregate(aggregationPipeline);
 
-    const total = await JobModule.countDocuments(filters);
+    // For search, we can't use countDocuments directly
+    const total = search
+      ? jobs.length // Approximate, since we can't use $count after $search easily
+      : await JobModule.countDocuments(filters);
 
-    successResponse(res, {
+    return successResponse(res, {
       jobs,
       total,
       page: Number(page),
       pages: Math.ceil(total / Number(limit)),
     }, 200);
+
   } catch (error) {
     next(error);
   }
@@ -202,31 +206,85 @@ export const getSingleJobs = async (req: Request, res: Response, next: NextFunct
 
     const { slug } = req.params;
 
-    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile');
+    const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile ').lean();
 
     if (!job) {
       errorResponse(res, 'Job not found', 404);
     }
 
-    return successResponse(res, job, 200);
+    const token = req.headers['authorization']?.split(' ')[1];
+    let isSaved = false;
 
-    // const application = await ApplyJobModel.findOne({
-    //   jobId: singleId,
-    //   userId: findToken?.user?._id
-    // });
-
-    // const findAlredyAppled = application ? true : false
-
-    // res.status(200).json({
-    //   success: true,
-    //   message: "Successfully retrieved single job",
-    //   data: {
-    //     job,
-    //     alreadyApplied: findAlredyAppled
-    //   },
-    // });
+    if (token) {
+      const user = await userAuth.findOne({ token }).select('_id');
+      if (user) {
+        const saved = await wishlist.exists({ userId: user._id, jobId: job._id });
+        isSaved = !!saved;
+      }
+    }
+    return successResponse(res, { ...job, isSaved }, 200);
 
   } catch (error) {
     next(error)
+  }
+};
+
+export const updateJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { slug } = req.params;
+    const {
+      title,
+      description,
+      budget,
+      date,
+      durationStartTime,
+      durationEndTime,
+      area,
+      city,
+      landMark
+    } = req.body;
+
+    const formattedDate = (() => {
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    })();
+
+    const generateSlug = (text: string) => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    };
+
+    const updatedSlug = generateSlug(title);
+
+    const updatedJob = await JobModule.findOneAndUpdate(
+      { slug },
+      {
+        title,
+        slug: updatedSlug,
+        description,
+        date: formattedDate,
+        budget,
+        durationStartTime,
+        durationEndTime,
+        area,
+        city,
+        landMark,
+      },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedJob) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    return successResponse(res, updatedJob, 200);
+  } catch (error) {
+    next(error);
   }
 };

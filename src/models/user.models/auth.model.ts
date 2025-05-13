@@ -22,6 +22,28 @@ const userAuth = new mongoose.Schema(
       type: String,
       required: [true, "Please enter your password"],
     },
+    salary: {
+      type: Number,
+      default: 250
+    },
+    city: {
+      type: String,
+    },
+    area: {
+      type: String,
+    },
+    domain: {
+      type: String,
+    },
+    slug: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    isActive: {
+      type: Boolean,
+      default: false
+    },
     instaProfileLink: { type: String, },
     token: {
       type: String,
