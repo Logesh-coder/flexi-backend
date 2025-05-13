@@ -1,6 +1,7 @@
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import serverless from 'serverless-http';
 import { connectDB } from './config/database';
 import logger from './config/logger';
 import { initializeDatabase } from './initServer';
@@ -15,15 +16,7 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 8000;
 
-// const corsOptions = {
-//   origin: 'http://localhost:3000',
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   credentials: true, // Allow cookies and headers
-// };
-// app.use(cors(corsOptions));
-
-
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
 
 const corsOptions: CorsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -75,14 +68,14 @@ app.get('/health', async (req, res) => {
 
 // Error-handling middleware
 app.use(errorHandler);
-
-// Route not found middleware (MUST be at the END)
 app.use(notFoundHandler);
 
-// Start the server
-app.listen(port, () => {
-  const host = 'http://localhost';
-  logger.info(`Server is running on ${host}:${port}`);
-});
+module.exports.handler = serverless(app);
+
+// // Start the server
+// app.listen(port, () => {
+//   const host = 'http://localhost';
+//   logger.info(`Server is running on ${host}:${port}`);
+// });
 
 initializeDatabase()
