@@ -1,7 +1,6 @@
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-import serverless from 'serverless-http';
 import { connectDB } from './config/database';
 import logger from './config/logger';
 import { initializeDatabase } from './initServer';
@@ -70,12 +69,12 @@ app.get('/health', async (req, res) => {
 app.use(errorHandler);
 app.use(notFoundHandler);
 
-module.exports.handler = serverless(app);
-
 // // Start the server
-// app.listen(port, () => {
-//   const host = 'http://localhost';
-//   logger.info(`Server is running on ${host}:${port}`);
-// });
+app.listen(port, () => {
+  const host = 'http://localhost';
+  logger.info(`Server is running on ${host}:${port}`);
+});
 
 initializeDatabase()
+
+export default app;
