@@ -2,13 +2,19 @@
   "name": "flexi",
   "version": "1.0.0",
   "private": true,
+  "main": "index.ts",
   "scripts": {
-    "start": "nodemon  src/index.ts",
-    "loki": "ts-node-dev --respawn src/index.ts",
-    "build": "tsc",
-    "test": "jest",
-    "init": "tsx src/initServer.ts"
+    "start": "nodemon src/index.ts",
+    "build": "rimraf dist && tsc",
+    "ts.check": "tsc --project tsconfig.json",
+    "add-build": "git add dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "pre-commit": [
+    "ts.check",
+    "build",
+    "add-build"
+  ],
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
@@ -36,6 +42,8 @@
     "ts-jest": "^29.1.1",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "pre-commit": "^1.2.2",
+    "rimraf": "^5.0.7"
   }
 }
