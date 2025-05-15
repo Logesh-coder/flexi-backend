@@ -32,6 +32,7 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+
 // Log incoming requests
 app.use((req, res, next) => {
   logger.info(`Incoming request: ${req.method} ${req.url}`);
@@ -74,6 +75,10 @@ app.listen(port, () => {
   logger.info(`Server is running on ${host}:${port}`);
 });
 
-initializeDatabase()
+app.get('/', (req, res) => {
+  res.send('Welcome to Flexi Backend!');
+});
+
+initializeDatabase();
 
 export default app;
