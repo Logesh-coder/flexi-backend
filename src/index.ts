@@ -39,7 +39,6 @@ app.use((req, res, next) => {
 });
 
 // API routes
-// app.use('/api/user', userAuthRoutes);
 app.use('/api', userAuthRoutes);
 
 // Protected route
