@@ -1,20 +1,23 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "jsx": "react",
     "module": "commonjs",
-    "outDir": "./public",
-    "rootDir": ".",
-    "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "allowSyntheticDefaultImports": true,
+    "target": "es2017",
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": [
+        "node_modules/*",
+        "src/types/*"
+      ]
+    }
   },
   "include": [
-    "api/**/*",
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.test.ts"
+    "./src/**/*"
   ]
 }

@@ -1,6 +1,11 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 // import cors, { CorsOptions } from 'cors';
 // import dotenv from 'dotenv';
-import express from 'express';
+const express_1 = __importDefault(require("express"));
 // import { connectDB } from './config/database';
 // import logger from './config/logger';
 // import { initializeDatabase } from './initServer';
@@ -8,15 +13,11 @@ import express from 'express';
 // import { errorHandler } from './middleware/errorHandler.middleware';
 // import { notFoundHandler } from './middleware/notFoundHandler.middleware';
 // import userAuthRoutes from './routes/index';
-
 // dotenv.config();
 // connectDB();
-
-const app = express();
+const app = (0, express_1.default)();
 // const port = process.env.PORT || 8000;
-
 // const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
-
 // const corsOptions: CorsOptions = {
 //   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
 //     if (!origin || allowedOrigins.includes(origin)) {
@@ -28,25 +29,19 @@ const app = express();
 //   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 //   credentials: true,
 // };
-
 // app.use(cors(corsOptions));
 // app.use(express.json());
-
-
 // // Log incoming requests
 // app.use((req, res, next) => {
 //   logger.info(`Incoming request: ${req.method} ${req.url}`);
 //   next();
 // });
-
 // // API routes
 // app.use('/api', userAuthRoutes);
-
 // // Protected route
 // app.get('/protected', authenticate, (req, res) => {
 //   res.json({ message: 'This is a protected route' });
 // });
-
 // // Health check route
 // app.get('/health', async (req, res) => {
 //   try {
@@ -64,21 +59,17 @@ const app = express();
 //     });
 //   }
 // });
-
 // // Error-handling middleware
 // app.use(errorHandler);
 // app.use(notFoundHandler);
-
 // // // Start the server
 // app.listen(port, () => {
 //   const host = 'http://localhost';
 //   logger.info(`Server is running on ${host}:${port}`);
 // });
-
 app.get('/', (req, res) => {
-  res.send('Welcome to Flexi Backend!');
+    res.send('Welcome to Flexi Backend!');
 });
-
 // initializeDatabase();
-
-export default app;
+exports.default = app;
+//# sourceMappingURL=index.js.map
