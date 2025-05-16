@@ -1,4 +1,4 @@
-import cors, { CorsOptions } from 'cors';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import { connectDB } from './config/database';
@@ -15,21 +15,22 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 8000;
 
-const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
+// const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
 
-const corsOptions: CorsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-};
+// const corsOptions: CorsOptions = {
+//   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error('Not allowed by CORS'));
+//     }
+//   },
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   credentials: true,
+// };
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 
 
