@@ -17,20 +17,20 @@ dotenv_1.default.config();
 (0, database_1.connectDB)();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8000;
-// const allowedOrigins = ['https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
-// const corsOptions: CorsOptions = {
-//   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error('Not allowed by CORS'));
-//     }
-//   },
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   credentials: true,
-// };
-// app.use(cors(corsOptions));
-app.use((0, cors_1.default)());
+const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+};
+app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
 // Log incoming requests
 app.use((req, res, next) => {
