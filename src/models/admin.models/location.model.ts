@@ -8,6 +8,7 @@ const citySchema = new mongoose.Schema(
             unique: true,
             trim: true,
         },
+        isActive: { type: Boolean, default: true },
     },
     { timestamps: true }
 );
@@ -26,6 +27,7 @@ const areaSchema = new mongoose.Schema(
             ref: 'City',
             required: [true, 'City reference is required'],
         },
+        isActive: { type: Boolean, default: true },
     },
     { timestamps: true }
 );

@@ -12,6 +12,7 @@ const citySchema = new mongoose_1.default.Schema({
         unique: true,
         trim: true,
     },
+    isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 const City = mongoose_1.default.model('City', citySchema);
 exports.City = City;
@@ -26,6 +27,7 @@ const areaSchema = new mongoose_1.default.Schema({
         ref: 'City',
         required: [true, 'City reference is required'],
     },
+    isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 const Area = mongoose_1.default.model('Area', areaSchema);
 exports.Area = Area;
