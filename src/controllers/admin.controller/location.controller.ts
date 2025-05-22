@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { Area, City } from "../../models/admin.models/location.model";
+import { default as Job, default as userAuth } from "../../models/user.models/auth.model";
 import { errorResponse, successResponse } from "../../utils/response.util";
 
 interface LocationRequestBody {
@@ -153,5 +154,36 @@ export const editLocation = async (req: Request, res: Response, next: NextFuncti
         return successResponse(res, { message: 'Location updated successfully' }, 200);
     } catch (err) {
         next(err);
+    }
+};
+
+export const deleteLocation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { cityId } = req.params;
+
+        const city = await City.findById(cityId);
+        if (!city) {
+            return res.status(404).json({ message: 'City not found' });
+        }
+
+        // Check if city is referenced in User collection
+        const userCount = await userAuth.countDocuments({ city: cityId });
+        if (userCount > 0) {
+            return res.status(400).json({ message: 'Cannot delete city assigned to users.' });
+        }
+
+        // Check if city is referenced in Job collection
+        const jobCount = await Job.countDocuments({ city: cityId });
+        if (jobCount > 0) {
+            return res.status(400).json({ message: 'Cannot delete city assigned to jobs.' });
+        }
+
+        // If no references found, proceed to delete areas and city
+        await Area.deleteMany({ city: cityId });
+        await City.findByIdAndDelete(cityId);
+
+        return res.status(200).json({ message: 'Location deleted successfully' });
+    } catch (error) {
+        next(error);
     }
 };

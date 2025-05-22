@@ -1,7 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.editLocation = exports.getAllLocations = exports.createLocationWithAreas = void 0;
+exports.deleteLocation = exports.editLocation = exports.getAllLocations = exports.createLocationWithAreas = void 0;
 const location_model_1 = require("../../models/admin.models/location.model");
+const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
 const response_util_1 = require("../../utils/response.util");
 const createLocationWithAreas = async (req, res, next) => {
     try {
@@ -128,4 +132,31 @@ const editLocation = async (req, res, next) => {
     }
 };
 exports.editLocation = editLocation;
+const deleteLocation = async (req, res, next) => {
+    try {
+        const { cityId } = req.params;
+        const city = await location_model_1.City.findById(cityId);
+        if (!city) {
+            return res.status(404).json({ message: 'City not found' });
+        }
+        // Check if city is referenced in User collection
+        const userCount = await auth_model_1.default.countDocuments({ city: cityId });
+        if (userCount > 0) {
+            return res.status(400).json({ message: 'Cannot delete city assigned to users.' });
+        }
+        // Check if city is referenced in Job collection
+        const jobCount = await auth_model_1.default.countDocuments({ city: cityId });
+        if (jobCount > 0) {
+            return res.status(400).json({ message: 'Cannot delete city assigned to jobs.' });
+        }
+        // If no references found, proceed to delete areas and city
+        await location_model_1.Area.deleteMany({ city: cityId });
+        await location_model_1.City.findByIdAndDelete(cityId);
+        return res.status(200).json({ message: 'Location deleted successfully' });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.deleteLocation = deleteLocation;
 //# sourceMappingURL=location.controller.js.map

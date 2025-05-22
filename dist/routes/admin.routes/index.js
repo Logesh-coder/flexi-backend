@@ -14,5 +14,6 @@ router.get('/job', auth_1.authenticate, job_controller_1.getJobs);
 router.post('/add-location', auth_1.authenticate, location_controller_1.createLocationWithAreas);
 router.get('/location', auth_1.authenticate, location_controller_1.getAllLocations);
 router.put('/location/:cityId', auth_1.authenticate, location_controller_1.editLocation);
+router.delete('/location/:cityId', auth_1.authenticate, location_controller_1.deleteLocation);
 exports.default = router;
 //# sourceMappingURL=index.js.map
