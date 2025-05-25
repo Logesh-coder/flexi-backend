@@ -7,7 +7,7 @@ import { CustomRequest } from "./auth.controller";
 
 export const createJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body
+    const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark, contact } = req.body
 
     const isActive = req.user?.isActive;
     const createUserId = req.user?._id;
@@ -45,7 +45,8 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
       area,
       city,
       landMark,
-      createUserId
+      createUserId,
+      contact
     });
 
     await newJob.save();

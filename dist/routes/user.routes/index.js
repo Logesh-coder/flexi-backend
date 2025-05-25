@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const location_controller_1 = require("../../controllers/admin.controller/location.controller");
 const auth_controller_1 = require("../../controllers/user.controller/auth.controller");
 const job_controller_1 = require("../../controllers/user.controller/job.controller");
 const wishlist_controller_1 = require("../../controllers/user.controller/wishlist.controller");
@@ -26,5 +27,6 @@ router.delete("/remove", auth_1.authenticate, wishlist_controller_1.removeFromWi
 router.post("/addWishlist-worker", auth_1.authenticate, wishlist_controller_1.addToWorkerWishlist);
 router.get("/wishlist-worker", auth_1.authenticate, wishlist_controller_1.getWorkerWishlist);
 router.delete("/remove-worker", auth_1.authenticate, wishlist_controller_1.removeFromWorkerWishlist);
+router.get('/location', location_controller_1.getAllLocations);
 exports.default = router;
 //# sourceMappingURL=index.js.map

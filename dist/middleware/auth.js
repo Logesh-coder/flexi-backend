@@ -18,25 +18,26 @@ const verifyToken = (token) => {
 };
 exports.verifyToken = verifyToken;
 const authenticate = async (req, res, next) => {
-    var _a;
     try {
-        const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
+        const authHeader = req.headers['authorization'];
+        const token = authHeader === null || authHeader === void 0 ? void 0 : authHeader.split(' ')[1];
         if (!token) {
-            return (0, response_util_1.errorResponse)(res, 'Authorization token is required', 400);
+            return (0, response_util_1.errorResponse)(res, 'Authorization token is required', 401);
         }
-        const user = await auth_model_1.default.findOne({ token: token });
-        // let userId = user?._id;
-        // if (!user) {
-        //   user = await userAuth.findById(userId);
-        //   if (!user) {
-        //     return errorResponse(res, 'User not found', 401);
-        //   }
-        // }
+        const user = await auth_model_1.default.findOne({ token });
+        if (!user) {
+            return (0, response_util_1.errorResponse)(res, 'Invalid token', 401);
+        }
+        // Optional: assuming you store token expiry as a Date in user.tokenExpiry
+        if (user.tokenExpiry && new Date(user.tokenExpiry) < new Date()) {
+            return (0, response_util_1.errorResponse)(res, 'Token expired', 40);
+        }
         req.user = user;
         next();
     }
     catch (error) {
-        return (0, response_util_1.errorResponse)(res, 'Invalid or expired token', 401);
+        console.error('Auth error:', error);
+        return (0, response_util_1.errorResponse)(res, 'Authentication failed', 401);
     }
 };
 exports.authenticate = authenticate;

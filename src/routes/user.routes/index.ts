@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { getAllLocations } from "../../controllers/admin.controller/location.controller";
 import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
 import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
 import { addToWishlist, addToWorkerWishlist, getWishlist, getWorkerWishlist, removeFromWishlist, removeFromWorkerWishlist } from '../../controllers/user.controller/wishlist.controller';
 import { authenticate } from '../../middleware/auth';
+
 
 const router = Router();
 
@@ -29,5 +31,8 @@ router.delete("/remove", authenticate, removeFromWishlist);
 router.post("/addWishlist-worker", authenticate, addToWorkerWishlist);
 router.get("/wishlist-worker", authenticate, getWorkerWishlist);
 router.delete("/remove-worker", authenticate, removeFromWorkerWishlist);
+
+router.get('/location', getAllLocations);
+
 
 export default router;    

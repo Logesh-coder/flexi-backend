@@ -11,7 +11,7 @@ const response_util_1 = require("../../utils/response.util");
 const createJobForm = async (req, res, next) => {
     var _a, _b;
     try {
-        const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark } = req.body;
+        const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark, contact } = req.body;
         const isActive = (_a = req.user) === null || _a === void 0 ? void 0 : _a.isActive;
         const createUserId = (_b = req.user) === null || _b === void 0 ? void 0 : _b._id;
         if (!isActive) {
@@ -43,7 +43,8 @@ const createJobForm = async (req, res, next) => {
             area,
             city,
             landMark,
-            createUserId
+            createUserId,
+            contact
         });
         await newJob.save();
         return (0, response_util_1.successResponse)(res, newJob, 201);

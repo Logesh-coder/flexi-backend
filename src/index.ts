@@ -15,7 +15,7 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 8000;
 
-const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'https://flexi-web-sigma.vercel.app/', 'http://localhost:5173'];
+const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
 
 const corsOptions: CorsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {

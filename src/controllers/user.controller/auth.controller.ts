@@ -292,10 +292,16 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
 
     const checkUpdateUser = await userAuth.findById(id);
 
-    if (checkUpdateUser?.city || checkUpdateUser?.area || checkUpdateUser?.salary || checkUpdateUser?.domain) {
-      checkUpdateUser.isActive = true
+    if (
+      checkUpdateUser?.city &&
+      checkUpdateUser?.area &&
+      checkUpdateUser?.salary &&
+      checkUpdateUser?.domain
+    ) {
+      checkUpdateUser.isActive = true;
       await checkUpdateUser.save();
     }
+
 
 
     return successResponse(res, updatedUser, 200);

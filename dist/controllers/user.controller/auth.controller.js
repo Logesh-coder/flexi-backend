@@ -231,7 +231,10 @@ const profileEdit = async (req, res, next) => {
             return (0, response_util_1.errorResponse)(res, 'User not found', 404);
         }
         const checkUpdateUser = await auth_model_1.default.findById(id);
-        if ((checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.city) || (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.area) || (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.salary) || (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.domain)) {
+        if ((checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.city) &&
+            (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.area) &&
+            (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.salary) &&
+            (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.domain)) {
             checkUpdateUser.isActive = true;
             await checkUpdateUser.save();
         }

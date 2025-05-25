@@ -13,6 +13,9 @@ const createJobForm = new mongoose.Schema({
     type: Number,
     required: true
   },
+  contact: {
+    type: Number,
+  },
   date: {
     type: String,
     required: true

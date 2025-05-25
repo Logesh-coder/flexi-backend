@@ -23,28 +23,28 @@ export const authenticate = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.headers['authorization']?.split(' ')[1];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.split(' ')[1];
 
     if (!token) {
-      return errorResponse(res, 'Authorization token is required', 400);
+      return errorResponse(res, 'Authorization token is required', 401);
     }
 
-    const user = await userAuth.findOne({ token: token })
+    const user = await userAuth.findOne({ token });
 
-    // let userId = user?._id;
+    if (!user) {
+      return errorResponse(res, 'Invalid token', 401);
+    }
 
-    // if (!user) {
-    //   user = await userAuth.findById(userId);
-
-    //   if (!user) {
-    //     return errorResponse(res, 'User not found', 401);
-    //   }
-    // }
+    // Optional: assuming you store token expiry as a Date in user.tokenExpiry
+    if (user.tokenExpiry && new Date(user.tokenExpiry) < new Date()) {
+      return errorResponse(res, 'Token expired', 40);
+    }
 
     req.user = user;
-
     next();
   } catch (error) {
-    return errorResponse(res, 'Invalid or expired token', 401);
+    console.error('Auth error:', error);
+    return errorResponse(res, 'Authentication failed', 401);
   }
 };
