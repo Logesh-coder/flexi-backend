@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import logger from './config/logger';
 import adminAuth from './models/admin.models/auth.model';
 
@@ -10,20 +11,33 @@ export const createAdmin = async () => {
         let adminUser = await adminAuth.findOne({ email });
 
         if (!adminUser) {
-            // const role = ROLES.ADMIN;
             const hashedPassword = await bcrypt.hash(password, 10);
 
+            // Create the admin user first
             adminUser = new adminAuth({
                 name: 'Admin User',
                 email,
                 password: hashedPassword,
-                // role,
                 phoneNumber: '9094197462',
                 isAuthorized: true,
             });
+
             await adminUser.save();
+
+            // Generate token after saving the user
+            const token = jwt.sign(
+                { userId: adminUser._id, email: adminUser.email },
+                process.env.SECRET_KEY as string,
+                { expiresIn: '8h' }
+            );
+
+            // Optionally save the token with the user, if your schema has a `token` field
+            adminUser.token = token;
+            await adminUser.save(); // Save again with the token
+
             logger.info('Default admin user created');
         }
+
         return adminUser;
     } catch (error: any) {
         throw new Error('Error in creating admin user: ' + error.message);

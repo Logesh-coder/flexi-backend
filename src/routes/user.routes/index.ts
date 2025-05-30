@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createHelpSupport } from "../../controllers/admin.controller/help.controller";
 import { getAllLocations } from "../../controllers/admin.controller/location.controller";
 import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
 import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
@@ -33,6 +34,6 @@ router.get("/wishlist-worker", authenticate, getWorkerWishlist);
 router.delete("/remove-worker", authenticate, removeFromWorkerWishlist);
 
 router.get('/location', getAllLocations);
-
+router.post('/help-support', createHelpSupport);
 
 export default router;    

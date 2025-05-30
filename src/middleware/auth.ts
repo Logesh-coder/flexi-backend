@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import adminAuth from '../models/admin.models/auth.model';
 import userAuth from '../models/user.models/auth.model';
 import { errorResponse } from '../utils/response.util';
 
@@ -42,6 +43,35 @@ export const authenticate = async (
     }
 
     req.user = user;
+    next();
+  } catch (error) {
+    console.error('Auth error:', error);
+    return errorResponse(res, 'Authentication failed', 401);
+  }
+};
+
+export const adminAuthenticate = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) {
+      return errorResponse(res, 'Authorization token is required', 401);
+    }
+
+    const decoded = jwt.verify(token, process.env.SECRET_KEY as string) as { userId: string, email: string };
+
+    const admin = await adminAuth.findById(decoded.userId);
+
+    if (!admin) {
+      return errorResponse(res, 'Admin not found', 401);
+    }
+
+    req.admin = admin;
     next();
   } catch (error) {
     console.error('Auth error:', error);
