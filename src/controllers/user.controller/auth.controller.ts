@@ -351,11 +351,18 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
       minBudget,
       maxBudget,
       search,
+      isActive,
       page = 1,
       limit = 10,
     } = req.query;
 
-    const filters: any = { isActive: true };
+    const filters: any = {};
+
+    if (typeof isActive === 'undefined') {
+      filters.isActive = true;
+    } else {
+      filters.isActive = isActive === 'true';
+    }
 
     if (area) filters.area = area;
     if (city) filters.city = city;
@@ -430,6 +437,26 @@ export const getSingleWorker = async (req: CustomRequest, res: Response, next: N
     if (!findUser) {
       return errorResponse(res, 'worker not found', 500);
     }
+
+    return successResponse(res, findUser, 200);
+
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const inActiveUser = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const findUser = await userAuth.findOne({ id })
+
+    if (!findUser) {
+      return errorResponse(res, 'worker not found', 500);
+    }
+
+    findUser.isActive = false;
+    await findUser.save();
 
     return successResponse(res, findUser, 200);
 

@@ -17,5 +17,6 @@ router.get('/location', auth_1.adminAuthenticate, location_controller_1.getAllLo
 router.put('/location/:cityId', auth_1.adminAuthenticate, location_controller_1.editLocation);
 router.delete('/location/:cityId', auth_1.adminAuthenticate, location_controller_1.deleteLocation);
 router.get('/help-support', auth_1.adminAuthenticate, help_controller_1.getAllHelpSupport);
+router.patch('/inActive/:id', auth_1.adminAuthenticate, auth_controller_2.inActiveUser);
 exports.default = router;
 //# sourceMappingURL=index.js.map

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSingleWorker = exports.getWorkers = exports.updatePssword = exports.profileEdit = exports.profile = exports.verifyToken = exports.resetPassword = exports.forgotPassword = exports.loginUser = exports.registerUser = void 0;
+exports.inActiveUser = exports.getSingleWorker = exports.getWorkers = exports.updatePssword = exports.profileEdit = exports.profile = exports.verifyToken = exports.resetPassword = exports.forgotPassword = exports.loginUser = exports.registerUser = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
@@ -273,8 +273,14 @@ const updatePssword = async (req, res, next) => {
 exports.updatePssword = updatePssword;
 const getWorkers = async (req, res, next) => {
     try {
-        const { area, city, minBudget, maxBudget, search, page = 1, limit = 10, } = req.query;
-        const filters = { isActive: true };
+        const { area, city, minBudget, maxBudget, search, isActive, page = 1, limit = 10, } = req.query;
+        const filters = {};
+        if (typeof isActive === 'undefined') {
+            filters.isActive = true;
+        }
+        else {
+            filters.isActive = isActive === 'true';
+        }
         if (area)
             filters.area = area;
         if (city)
@@ -345,4 +351,20 @@ const getSingleWorker = async (req, res, next) => {
     }
 };
 exports.getSingleWorker = getSingleWorker;
+const inActiveUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const findUser = await auth_model_1.default.findOne({ id });
+        if (!findUser) {
+            return (0, response_util_1.errorResponse)(res, 'worker not found', 500);
+        }
+        findUser.isActive = false;
+        await findUser.save();
+        return (0, response_util_1.successResponse)(res, findUser, 200);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.inActiveUser = inActiveUser;
 //# sourceMappingURL=auth.controller.js.map
