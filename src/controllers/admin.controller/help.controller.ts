@@ -28,11 +28,33 @@ export const createHelpSupport = async (req: Request, res: Response, next: NextF
     }
 };
 // Get All Help & Support Entries
-export const getAllHelpSupport = async (_req: Request, res: Response, next: NextFunction) => {
+export const getAllHelpSupport = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const entries = await HelpSupportModel.find().sort({ createdAt: -1 });
+        const search = req.query.search?.toString() || '';
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const skip = (page - 1) * limit;
 
-        return successResponse(res, entries, 200);
+        // Build search query
+        const query = search
+            ? {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { mobile: { $regex: search, $options: 'i' } },
+                    { subject: { $regex: search, $options: 'i' } },
+                    { message: { $regex: search, $options: 'i' } },
+                ],
+            }
+            : {};
+
+        const entries = await HelpSupportModel.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const totalCount = await HelpSupportModel.countDocuments(query);
+
+        return successResponse(res, { data: entries, totalCount }, 200);
     } catch (error) {
         next(error);
     }

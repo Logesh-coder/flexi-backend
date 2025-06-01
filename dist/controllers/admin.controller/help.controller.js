@@ -30,10 +30,30 @@ const createHelpSupport = async (req, res, next) => {
 };
 exports.createHelpSupport = createHelpSupport;
 // Get All Help & Support Entries
-const getAllHelpSupport = async (_req, res, next) => {
+const getAllHelpSupport = async (req, res, next) => {
+    var _a;
     try {
-        const entries = await help_model_1.default.find().sort({ createdAt: -1 });
-        return (0, response_util_1.successResponse)(res, entries, 200);
+        const search = ((_a = req.query.search) === null || _a === void 0 ? void 0 : _a.toString()) || '';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        // Build search query
+        const query = search
+            ? {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { mobile: { $regex: search, $options: 'i' } },
+                    { subject: { $regex: search, $options: 'i' } },
+                    { message: { $regex: search, $options: 'i' } },
+                ],
+            }
+            : {};
+        const entries = await help_model_1.default.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        const totalCount = await help_model_1.default.countDocuments(query);
+        return (0, response_util_1.successResponse)(res, { data: entries, totalCount }, 200);
     }
     catch (error) {
         next(error);
