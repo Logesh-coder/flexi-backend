@@ -3,12 +3,71 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.inActiveUser = exports.getSingleWorker = exports.getWorkers = exports.updatePssword = exports.profileEdit = exports.profile = exports.verifyToken = exports.resetPassword = exports.forgotPassword = exports.loginUser = exports.registerUser = void 0;
+exports.inActiveUser = exports.getSingleWorker = exports.getWorkers = exports.updatePssword = exports.profileEdit = exports.profile = exports.verifyToken = exports.resetPassword = exports.forgotPassword = exports.loginUser = exports.registerUser = exports.handleGoogleCallback = void 0;
+const axios_1 = __importDefault(require("axios"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
 const response_util_1 = require("../../utils/response.util");
+const handleGoogleCallback = async (req, res) => {
+    const code = req.query.code;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const frontendUrl = process.env.WEBSITE_LINK || 'http://localhost:3000';
+    try {
+        // 1. Exchange code for access token
+        const tokenResponse = await axios_1.default.post('https://oauth2.googleapis.com/token', {
+            code,
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+        });
+        const { access_token } = tokenResponse.data;
+        if (!access_token) {
+            return res.status(401).json({ message: 'Failed to get access token from Google' });
+        }
+        // 2. Get user info from Google
+        const googleUser = await axios_1.default.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${access_token}` },
+        });
+        const { name, email } = googleUser.data;
+        if (!email) {
+            return res.status(400).json({ message: 'Google account has no email' });
+        }
+        // 3. Check if user exists in DB
+        let user = await auth_model_1.default.findOne({ email });
+        if (!user) {
+            // 4. Generate slug from name 
+            const slug = name
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/--+/g, '-');
+            // 5. Create new user
+            user = new auth_model_1.default({
+                name,
+                email,
+                slug,
+                isActive: true,
+            });
+            await user.save();
+        }
+        // 6. Create JWT token
+        const token = jsonwebtoken_1.default.sign({ userId: user._id, email: user.email }, process.env.SECRET_KEY, { expiresIn: '8h' });
+        user.token = token;
+        await user.save();
+        // 7. Redirect to frontend with token
+        const successUrl = `${frontendUrl}/auth-success?token=${token}&name=${encodeURIComponent(user.name)}`;
+        return res.redirect(successUrl);
+    }
+    catch (err) {
+        console.error('Google OAuth Error:', err);
+        return res.status(500).json({ message: 'Google authentication failed' });
+    }
+};
+exports.handleGoogleCallback = handleGoogleCallback;
 const registerUser = async (req, res, next) => {
     try {
         const { email, mobile, password, name, date_of_birth } = req.body;

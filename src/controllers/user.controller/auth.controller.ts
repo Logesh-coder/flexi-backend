@@ -1,3 +1,4 @@
+import axios from 'axios';
 import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
@@ -9,6 +10,80 @@ import { errorResponse, successResponse } from "../../utils/response.util";
 export interface CustomRequest extends Request {
   user?: CustomUser;
 }
+
+export const handleGoogleCallback = async (req: Request, res: Response) => {
+  const code = req.query.code as string;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI!;
+  const frontendUrl = process.env.WEBSITE_LINK || 'http://localhost:3000';
+
+  try {
+    // 1. Exchange code for access token
+    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    });
+
+    const { access_token } = tokenResponse.data;
+
+    if (!access_token) {
+      return res.status(401).json({ message: 'Failed to get access token from Google' });
+    }
+
+    // 2. Get user info from Google
+    const googleUser = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    const { name, email } = googleUser.data;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Google account has no email' });
+    }
+
+    // 3. Check if user exists in DB
+    let user = await userAuth.findOne({ email });
+
+    if (!user) {
+      // 4. Generate slug from name 
+      const slug = name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/--+/g, '-');
+
+      // 5. Create new user
+      user = new userAuth({
+        name,
+        email,
+        slug,
+        isActive: true,
+      });
+
+      await user.save();
+    }
+
+    // 6. Create JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.SECRET_KEY as string,
+      { expiresIn: '8h' }
+    );
+
+    user.token = token;
+    await user.save();
+
+    // 7. Redirect to frontend with token
+    const successUrl = `${frontendUrl}/auth-success?token=${token}&name=${encodeURIComponent(user.name)}`;
+    return res.redirect(successUrl);
+  } catch (err) {
+    console.error('Google OAuth Error:', err);
+    return res.status(500).json({ message: 'Google authentication failed' });
+  }
+};
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
