@@ -1,24 +1,13 @@
 import { Router } from 'express';
 import { createHelpSupport } from "../../controllers/admin.controller/help.controller";
 import { getAllLocations } from "../../controllers/admin.controller/location.controller";
-import { forgotPassword, getSingleWorker, getWorkers, handleGoogleCallback, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
+import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
 import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
 import { addToWishlist, addToWorkerWishlist, getWishlist, getWorkerWishlist, removeFromWishlist, removeFromWorkerWishlist } from '../../controllers/user.controller/wishlist.controller';
 import { authenticate } from '../../middleware/auth';
 
 
 const router = Router();
-
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
-
-router.get('/google', (_req, res) => {
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&response_type=code&scope=email profile&access_type=offline`;
-    res.redirect(url);
-});
-
-router.get('/google/callback', handleGoogleCallback);
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);

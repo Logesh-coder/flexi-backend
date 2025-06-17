@@ -12,7 +12,8 @@ const initServer_1 = require("./initServer");
 const auth_1 = require("./middleware/auth");
 const errorHandler_middleware_1 = require("./middleware/errorHandler.middleware");
 const notFoundHandler_middleware_1 = require("./middleware/notFoundHandler.middleware");
-const index_1 = __importDefault(require("./routes/index"));
+const index_1 = __importDefault(require("./routes/auth.routes/index"));
+const index_2 = __importDefault(require("./routes/index"));
 dotenv_1.default.config();
 (0, database_1.connectDB)();
 const app = (0, express_1.default)();
@@ -38,7 +39,8 @@ app.use((req, res, next) => {
     next();
 });
 // API routes
-app.use('/api', index_1.default);
+app.use('/api', index_2.default);
+app.use('/auth', index_1.default);
 // Protected route
 app.get('/protected', auth_1.authenticate, (req, res) => {
     res.json({ message: 'This is a protected route' });

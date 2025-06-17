@@ -8,13 +8,6 @@ const job_controller_1 = require("../../controllers/user.controller/job.controll
 const wishlist_controller_1 = require("../../controllers/user.controller/wishlist.controller");
 const auth_1 = require("../../middleware/auth");
 const router = (0, express_1.Router)();
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
-router.get('/google', (_req, res) => {
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&response_type=code&scope=email profile&access_type=offline`;
-    res.redirect(url);
-});
-router.get('/google/callback', auth_controller_1.handleGoogleCallback);
 router.post('/register', auth_controller_1.registerUser);
 router.post('/login', auth_controller_1.loginUser);
 router.post('/forgot-password', auth_controller_1.forgotPassword);

@@ -7,6 +7,7 @@ import { initializeDatabase } from './initServer';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
+import OAuth from './routes/auth.routes/index';
 import userAuthRoutes from './routes/index';
 
 dotenv.config();
@@ -41,6 +42,8 @@ app.use((req, res, next) => {
 
 // API routes
 app.use('/api', userAuthRoutes);
+app.use('/auth', OAuth);
+
 
 // Protected route
 app.get('/protected', authenticate, (req, res) => {

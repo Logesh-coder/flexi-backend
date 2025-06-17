@@ -24,6 +24,7 @@ const handleGoogleCallback = async (req, res) => {
             grant_type: 'authorization_code',
         });
         const { access_token } = tokenResponse.data;
+        console.log('access_token', access_token);
         if (!access_token) {
             return res.status(401).json({ message: 'Failed to get access token from Google' });
         }
@@ -59,7 +60,7 @@ const handleGoogleCallback = async (req, res) => {
         user.token = token;
         await user.save();
         // 7. Redirect to frontend with token
-        const successUrl = `${frontendUrl}/auth-success?token=${token}&name=${encodeURIComponent(user.name)}`;
+        const successUrl = `${frontendUrl}/?token=${token}&name=${encodeURIComponent(user.name)}`;
         return res.redirect(successUrl);
     }
     catch (err) {
