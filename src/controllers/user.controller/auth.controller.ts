@@ -79,7 +79,7 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
     await user.save();
 
     // 7. Redirect to frontend with token
-    const successUrl = `${frontendUrl}/?token=${token}&name=${encodeURIComponent(user.name)}`;
+    const successUrl = `${frontendUrl}/login?token=${token}&isActive=${user.isActive}}`;
     return res.redirect(successUrl);
   } catch (err) {
     console.error('Google OAuth Error:', err);
