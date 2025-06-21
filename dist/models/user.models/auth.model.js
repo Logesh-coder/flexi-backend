@@ -8,11 +8,11 @@ const userAuth = new mongoose.Schema({
     },
     mobile: {
         type: Number,
-        required: [true, "Please enter your number"],
+        // required: [true, "Please enter your number"],
     },
     date_of_birth: {
         type: String,
-        required: [true, "Please enter your Date of Birth"],
+        // required: [true, "Please enter your Date of Birth"],
     },
     email: {
         type: String,
@@ -20,7 +20,7 @@ const userAuth = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, "Please enter your password"],
+        // required: [true, "Please enter your password"],
     },
     salary: {
         type: Number,
@@ -44,7 +44,6 @@ const userAuth = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    instaProfileLink: { type: String, },
     token: {
         type: String,
     },

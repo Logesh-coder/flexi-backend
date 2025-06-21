@@ -62,7 +62,7 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
         name,
         email,
         slug,
-        isActive: true,
+        // isActive: true,
       });
 
       await user.save();

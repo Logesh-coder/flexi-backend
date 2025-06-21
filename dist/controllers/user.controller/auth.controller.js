@@ -51,7 +51,7 @@ const handleGoogleCallback = async (req, res) => {
                 name,
                 email,
                 slug,
-                isActive: true,
+                // isActive: true,
             });
             await user.save();
         }
