@@ -60,7 +60,7 @@ const handleGoogleCallback = async (req, res) => {
         user.token = token;
         await user.save();
         // 7. Redirect to frontend with token
-        const successUrl = `${frontendUrl}/login?token=${token}&isActive=${user.isActive}}`;
+        const successUrl = `${frontendUrl}/login?token=${token}&isActive=${user.isActive}`;
         return res.redirect(successUrl);
     }
     catch (err) {
@@ -294,6 +294,8 @@ const profileEdit = async (req, res, next) => {
         if ((checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.city) &&
             (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.area) &&
             (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.salary) &&
+            (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.mobile) &&
+            (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.date_of_birth) &&
             (checkUpdateUser === null || checkUpdateUser === void 0 ? void 0 : checkUpdateUser.domain)) {
             checkUpdateUser.isActive = true;
             await checkUpdateUser.save();

@@ -4,6 +4,7 @@ const express_1 = require("express");
 const help_controller_1 = require("../../controllers/admin.controller/help.controller");
 const location_controller_1 = require("../../controllers/admin.controller/location.controller");
 const auth_controller_1 = require("../../controllers/user.controller/auth.controller");
+const call_controller_1 = require("../../controllers/user.controller/call.controller");
 const job_controller_1 = require("../../controllers/user.controller/job.controller");
 const wishlist_controller_1 = require("../../controllers/user.controller/wishlist.controller");
 const auth_1 = require("../../middleware/auth");
@@ -30,5 +31,8 @@ router.get("/wishlist-worker", auth_1.authenticate, wishlist_controller_1.getWor
 router.delete("/remove-worker", auth_1.authenticate, wishlist_controller_1.removeFromWorkerWishlist);
 router.get('/location', location_controller_1.getAllLocations);
 router.post('/help-support', help_controller_1.createHelpSupport);
+router.post('/call', auth_1.authenticate, call_controller_1.createCall);
+router.get('/called-jobs', auth_1.authenticate, call_controller_1.getJobCallsByUser);
+router.get('/called-workers', auth_1.authenticate, call_controller_1.getWorkerCallsByUser);
 exports.default = router;
 //# sourceMappingURL=index.js.map

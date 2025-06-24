@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { createHelpSupport } from "../../controllers/admin.controller/help.controller";
 import { getAllLocations } from "../../controllers/admin.controller/location.controller";
 import { forgotPassword, getSingleWorker, getWorkers, loginUser, profile, profileEdit, registerUser, resetPassword, updatePssword, verifyToken } from "../../controllers/user.controller/auth.controller";
+import { createCall, getJobCallsByUser, getWorkerCallsByUser } from '../../controllers/user.controller/call.controller';
 import { createJobForm, getJobs, getSingleJobs, updateJobForm } from '../../controllers/user.controller/job.controller';
 import { addToWishlist, addToWorkerWishlist, getWishlist, getWorkerWishlist, removeFromWishlist, removeFromWorkerWishlist } from '../../controllers/user.controller/wishlist.controller';
 import { authenticate } from '../../middleware/auth';
-
 
 const router = Router();
 
@@ -35,5 +35,10 @@ router.delete("/remove-worker", authenticate, removeFromWorkerWishlist);
 
 router.get('/location', getAllLocations);
 router.post('/help-support', createHelpSupport);
+
+
+router.post('/call', authenticate, createCall);
+router.get('/called-jobs', authenticate, getJobCallsByUser);
+router.get('/called-workers', authenticate, getWorkerCallsByUser);
 
 export default router;    

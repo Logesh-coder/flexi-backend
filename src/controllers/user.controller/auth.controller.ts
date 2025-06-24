@@ -79,7 +79,7 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
     await user.save();
 
     // 7. Redirect to frontend with token
-    const successUrl = `${frontendUrl}/login?token=${token}&isActive=${user.isActive}}`;
+    const successUrl = `${frontendUrl}/login?token=${token}&isActive=${user.isActive}`;
     return res.redirect(successUrl);
   } catch (err) {
     console.error('Google OAuth Error:', err);
@@ -373,6 +373,8 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
       checkUpdateUser?.city &&
       checkUpdateUser?.area &&
       checkUpdateUser?.salary &&
+      checkUpdateUser?.mobile &&
+      checkUpdateUser?.date_of_birth &&
       checkUpdateUser?.domain
     ) {
       checkUpdateUser.isActive = true;
