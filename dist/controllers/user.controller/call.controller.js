@@ -28,12 +28,35 @@ const createCall = async (req, res) => {
     }
 };
 exports.createCall = createCall;
+// controllers/call.controller.ts
 const getJobCallsByUser = async (req, res) => {
     try {
+        // 1) parse page & limit (fallback to page 1, limit 10)
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.max(1, parseInt(req.query.limit, 10) || 10);
+        const skip = (page - 1) * limit;
+        // 2) fetch total count
+        const totalCount = await call_1.default.countDocuments({
+            user: req.user._id,
+            job: { $ne: null }
+        });
+        // 3) fetch this page
         const calls = await call_1.default.find({ user: req.user._id, job: { $ne: null } })
             .populate('job')
-            .sort({ createdAt: -1 });
-        res.status(200).json(calls);
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        // 4) compute pagination metadata
+        const totalPages = Math.ceil(totalCount / limit);
+        const hasNextPage = page < totalPages;
+        // 5) send back structured payload
+        res.status(200).json({
+            data: calls,
+            page,
+            totalPages,
+            hasNextPage,
+            nextPage: hasNextPage ? page + 1 : null
+        });
     }
     catch (err) {
         console.error(err);
@@ -43,10 +66,27 @@ const getJobCallsByUser = async (req, res) => {
 exports.getJobCallsByUser = getJobCallsByUser;
 const getWorkerCallsByUser = async (req, res) => {
     try {
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.max(1, parseInt(req.query.limit, 10) || 10);
+        const skip = (page - 1) * limit;
+        const totalCount = await call_1.default.countDocuments({
+            user: req.user._id,
+            worker: { $ne: null }
+        });
         const calls = await call_1.default.find({ user: req.user._id, worker: { $ne: null } })
             .populate('worker')
-            .sort({ createdAt: -1 });
-        res.status(200).json(calls);
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        const totalPages = Math.ceil(totalCount / limit);
+        const hasNextPage = page < totalPages;
+        res.status(200).json({
+            data: calls,
+            page,
+            totalPages,
+            hasNextPage,
+            nextPage: hasNextPage ? page + 1 : null
+        });
     }
     catch (err) {
         console.error(err);
