@@ -3,6 +3,7 @@ import { handleGoogleCallback } from '../../controllers/user.controller/auth.con
 
 const router = Router();
 
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 
