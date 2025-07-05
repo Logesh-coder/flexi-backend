@@ -8,7 +8,6 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
 const database_1 = require("./config/database");
 const logger_1 = __importDefault(require("./config/logger"));
-const initServer_1 = require("./initServer");
 const auth_1 = require("./middleware/auth");
 const errorHandler_middleware_1 = require("./middleware/errorHandler.middleware");
 const notFoundHandler_middleware_1 = require("./middleware/notFoundHandler.middleware");
@@ -74,6 +73,6 @@ app.listen(port, () => {
 app.get('/', (req, res) => {
     res.send('Welcome to Flexi Backend!');
 });
-(0, initServer_1.initializeDatabase)();
+// initializeDatabase();
 exports.default = app;
 //# sourceMappingURL=index.js.map

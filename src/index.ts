@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { connectDB } from './config/database';
 import logger from './config/logger';
-import { initializeDatabase } from './initServer';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { notFoundHandler } from './middleware/notFoundHandler.middleware';
@@ -82,6 +81,6 @@ app.get('/', (req, res) => {
   res.send('Welcome to Flexi Backend!');
 });
 
-initializeDatabase();
+// initializeDatabase();
 
 export default app;
