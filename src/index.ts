@@ -9,8 +9,6 @@ import { notFoundHandler } from './middleware/notFoundHandler.middleware';
 import OAuth from './routes/auth.routes/index';
 import userAuthRoutes from './routes/index';
 
-
-
 dotenv.config();
 connectDB();
 
