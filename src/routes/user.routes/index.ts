@@ -36,7 +36,6 @@ router.delete("/remove-worker", authenticate, removeFromWorkerWishlist);
 router.get('/location', getAllLocations);
 router.post('/help-support', createHelpSupport);
 
-
 router.post('/call', authenticate, createCall);
 router.get('/called-jobs', authenticate, getJobCallsByUser);
 router.get('/called-workers', authenticate, getWorkerCallsByUser);

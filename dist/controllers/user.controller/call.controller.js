@@ -13,6 +13,10 @@ const createCall = async (req, res) => {
         if (!job && !worker) {
             return res.status(400).json({ error: 'jobId or workerId is required' });
         }
+        const existingCall = await call_1.default.findOne(Object.assign({ user: userId }, (job ? { job } : { worker })));
+        if (existingCall) {
+            return res.status(200).json({ message: 'Call already tracked', call: existingCall });
+        }
         const call = new call_1.default({
             user: userId,
             job: job || null,
