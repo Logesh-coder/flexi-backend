@@ -280,12 +280,12 @@ const profileEdit = async (req, res, next) => {
         if (!user) {
             return (0, response_util_1.errorResponse)(res, 'User not found', 404);
         }
-        if (mobile && mobile !== user.mobile) {
-            const existingUser = await auth_model_1.default.findOne({ mobile });
-            if (existingUser) {
-                return (0, response_util_1.errorResponse)(res, 'Mobile number is already in use.', 400);
-            }
-        }
+        // if (mobile && mobile !== user.mobile) {
+        //   const existingUser = await userAuth.findOne({ mobile });
+        //   if (existingUser) {
+        //     return errorResponse(res, 'Mobile number is already in use.', 400);
+        //   }
+        // }
         const updatedUser = await auth_model_1.default.findByIdAndUpdate(id, Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (name && { name })), (mobile && { mobile })), (date_of_birth && { date_of_birth })), (instaProfileLink && { instaProfileLink })), (salary && { salary })), (city && { city })), (area && { area })), (domain && { domain })), { new: true });
         if (!updatedUser) {
             return (0, response_util_1.errorResponse)(res, 'User not found', 404);

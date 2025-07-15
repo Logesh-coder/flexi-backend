@@ -337,16 +337,17 @@ export const profileEdit = async (req: CustomRequest, res: Response, next: NextF
     }
 
     const user = await userAuth.findById(id);
+
     if (!user) {
       return errorResponse(res, 'User not found', 404);
     }
 
-    if (mobile && mobile !== user.mobile) {
-      const existingUser = await userAuth.findOne({ mobile });
-      if (existingUser) {
-        return errorResponse(res, 'Mobile number is already in use.', 400);
-      }
-    }
+    // if (mobile && mobile !== user.mobile) {
+    //   const existingUser = await userAuth.findOne({ mobile });
+    //   if (existingUser) {
+    //     return errorResponse(res, 'Mobile number is already in use.', 400);
+    //   }
+    // }
 
     const updatedUser = await userAuth.findByIdAndUpdate(
       id,
