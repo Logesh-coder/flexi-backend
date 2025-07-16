@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -14,6 +15,9 @@ connectDB();
 
 const app = express();
 const port = process.env.PORT || 8000;
+
+app.use(compression());
+
 
 const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
 

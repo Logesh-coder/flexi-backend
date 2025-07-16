@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const compression_1 = __importDefault(require("compression"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
@@ -17,6 +18,7 @@ dotenv_1.default.config();
 (0, database_1.connectDB)();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8000;
+app.use((0, compression_1.default)());
 const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
 const corsOptions = {
     origin: function (origin, callback) {

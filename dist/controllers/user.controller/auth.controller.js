@@ -9,6 +9,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
+const cache_1 = __importDefault(require("../../utils/cache"));
 const response_util_1 = require("../../utils/response.util");
 const handleGoogleCallback = async (req, res) => {
     const code = req.query.code;
@@ -333,6 +334,78 @@ const updatePssword = async (req, res, next) => {
     }
 };
 exports.updatePssword = updatePssword;
+// export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const {
+//       area,
+//       city,
+//       minBudget,
+//       maxBudget,
+//       search,
+//       isActive,
+//       page = 1,
+//       limit = 10,
+//     } = req.query;
+//     const filters: any = {};
+//     if (typeof isActive === 'undefined') {
+//       filters.isActive = true;
+//     } else {
+//       filters.isActive = isActive === 'true';
+//     }
+//     if (area) filters.area = area;
+//     if (city) filters.city = city;
+//     if (minBudget || maxBudget) {
+//       filters.salary = {};
+//       if (minBudget) filters.salary.$gte = Number(minBudget);
+//       if (maxBudget) filters.salary.$lte = Number(maxBudget);
+//     }
+//     const skip = (Number(page) - 1) * Number(limit);
+//     const aggregationPipeline: any[] = [];
+//     if (search) {
+//       aggregationPipeline.push({
+//         $search: {
+//           index: 'workerSearchIndex',
+//           text: {
+//             query: search,
+//             path: ['domain', 'name'],
+//             fuzzy: {
+//               maxEdits: 2,
+//               prefixLength: 1,
+//             },
+//           },
+//         },
+//       });
+//       // Apply filters after $search
+//       aggregationPipeline.push({ $match: filters });
+//     } else {
+//       aggregationPipeline.push({ $match: filters });
+//     }
+//     aggregationPipeline.push(
+//       { $sort: { createdAt: -1 } },
+//       { $skip: skip },
+//       { $limit: Number(limit) },
+//       {
+//         $project: {
+//           password: 0,
+//           token: 0,
+//           __v: 0,
+//         },
+//       }
+//     );
+//     const workers = await userAuth.aggregate(aggregationPipeline);
+//     const total = search
+//       ? workers.length
+//       : await userAuth.countDocuments(filters);
+//     successResponse(res, {
+//       workers,
+//       total,
+//       page: Number(page),
+//       pages: Math.ceil(total / Number(limit)),
+//     }, 200);
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 const getWorkers = async (req, res, next) => {
     try {
         const { area, city, minBudget, maxBudget, search, isActive, page = 1, limit = 10, } = req.query;
@@ -355,6 +428,21 @@ const getWorkers = async (req, res, next) => {
                 filters.salary.$lte = Number(maxBudget);
         }
         const skip = (Number(page) - 1) * Number(limit);
+        // ✅ Unique cache key per filter set
+        const cacheKey = `workers:${JSON.stringify({
+            area,
+            city,
+            minBudget,
+            maxBudget,
+            search,
+            isActive,
+            page,
+            limit,
+        })}`;
+        const cached = cache_1.default.get(cacheKey);
+        if (cached) {
+            return (0, response_util_1.successResponse)(res, cached, 200);
+        }
         const aggregationPipeline = [];
         if (search) {
             aggregationPipeline.push({
@@ -364,13 +452,12 @@ const getWorkers = async (req, res, next) => {
                         query: search,
                         path: ['domain', 'name'],
                         fuzzy: {
-                            maxEdits: 2,
-                            prefixLength: 1,
+                            maxEdits: 1, // 🔁 Reduced from 2 to 1 for better performance
+                            prefixLength: 2, // 🔁 Increased slightly for efficiency
                         },
                     },
                 },
             });
-            // Apply filters after $search
             aggregationPipeline.push({ $match: filters });
         }
         else {
@@ -385,14 +472,17 @@ const getWorkers = async (req, res, next) => {
         });
         const workers = await auth_model_1.default.aggregate(aggregationPipeline);
         const total = search
-            ? workers.length
+            ? workers.length // count manually when using $search
             : await auth_model_1.default.countDocuments(filters);
-        (0, response_util_1.successResponse)(res, {
+        const responseData = {
             workers,
             total,
             page: Number(page),
             pages: Math.ceil(total / Number(limit)),
-        }, 200);
+        };
+        // ✅ Cache the response for faster access next time
+        cache_1.default.set(cacheKey, responseData);
+        return (0, response_util_1.successResponse)(res, responseData, 200);
     }
     catch (error) {
         next(error);
@@ -402,10 +492,20 @@ exports.getWorkers = getWorkers;
 const getSingleWorker = async (req, res, next) => {
     try {
         const { slug } = req.params;
-        const findUser = await auth_model_1.default.findOne({ slug: slug }).select('-password -__v -token');
+        // 🔐 Unique cache key for this worker
+        const cacheKey = `worker:${slug}`;
+        const cached = cache_1.default.get(cacheKey);
+        if (cached) {
+            return (0, response_util_1.successResponse)(res, cached, 200);
+        }
+        const findUser = await auth_model_1.default
+            .findOne({ slug })
+            .select('-password -__v -token');
         if (!findUser) {
             return (0, response_util_1.errorResponse)(res, 'worker not found', 500);
         }
+        // ✅ Store in cache
+        cache_1.default.set(cacheKey, findUser);
         return (0, response_util_1.successResponse)(res, findUser, 200);
     }
     catch (error) {
@@ -413,6 +513,18 @@ const getSingleWorker = async (req, res, next) => {
     }
 };
 exports.getSingleWorker = getSingleWorker;
+// export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { slug } = req.params;
+//     const findUser = await userAuth.findOne({ slug: slug }).select('-password -__v -token')
+//     if (!findUser) {
+//       return errorResponse(res, 'worker not found', 500);
+//     }
+//     return successResponse(res, findUser, 200);
+//   } catch (error) {
+//     next(error)
+//   }
+// }
 const inActiveUser = async (req, res, next) => {
     try {
         const { id } = req.params;
