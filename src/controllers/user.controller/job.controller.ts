@@ -230,17 +230,6 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
 
     console.log('user', user?._id)
 
-    // let userId: mongoose.Types.ObjectId | null = null;
-
-    // if (token) {
-    //   try {
-    //     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    //     userId = new mongoose.Types.ObjectId(decoded._id);
-    //   } catch (error) {
-    //     userId = null;
-    //   }
-    // }
-
     const filters: any = {};
     // if (id === 'true' && userId) filters.createUserId = userId;
     if (id === 'true' && user?._id) {
