@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from 'jsonwebtoken';
+import mongoose from "mongoose";
+import userAuth from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
 import { wishlist } from "../../models/user.models/wishlist";
 import cache from "../../utils/cache";
@@ -205,7 +207,6 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
 // };
 
 
-
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -221,29 +222,30 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     } = req.query;
 
     const token = req.headers['authorization']?.split(' ')[1];
-    let userId: any = null;
 
+    let user;
     if (token) {
-      try {
-        const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-        userId = decoded._id;
-      } catch (error) {
-        // if token is invalid, we treat user as not logged in
-        userId = null;
-      }
+      user = await userAuth.findOne({ token }).select('_id');
     }
 
-    const cacheKey = `jobs:${JSON.stringify({
-      area, city, minBudget, maxBudget, search, date, id, page, limit, userId
-    })}`;
+    console.log('user', user?._id)
 
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      return successResponse(res, cached, 200);
-    }
+    // let userId: mongoose.Types.ObjectId | null = null;
+
+    // if (token) {
+    //   try {
+    //     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    //     userId = new mongoose.Types.ObjectId(decoded._id);
+    //   } catch (error) {
+    //     userId = null;
+    //   }
+    // }
 
     const filters: any = {};
-    if (id === 'true' && userId) filters.createUserId = userId;
+    // if (id === 'true' && userId) filters.createUserId = userId;
+    if (id === 'true' && user?._id) {
+      filters.createUserId = new mongoose.Types.ObjectId(user._id);
+    }
     if (area) filters.area = area;
     if (city) filters.city = city;
     if (date) filters.date = date;
@@ -283,36 +285,43 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
           { $sort: { createdAt: -1 } },
           { $skip: skip },
           { $limit: Number(limit) },
-          {
-            $lookup: {
-              from: 'wishlists',
-              let: { jobId: '$_id' },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $and: [
-                        { $eq: ['$jobId', '$$jobId'] },
-                        { $eq: ['$userId', userId] },
-                      ],
+
+          // ✅ Conditional $lookup if user is logged in
+          ...(user?._id ? [
+            {
+              $lookup: {
+                from: 'Wishlist',
+                let: { jobId: '$_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$jobId', '$$jobId'] },
+                          { $eq: ['$userId', user?._id] }, // ✅ direct value comparison
+                        ],
+                      },
                     },
                   },
-                },
-              ],
-              as: 'wishlist',
-            },
-          },
-          {
-            $addFields: {
-              isSaved: {
-                $cond: {
-                  if: { $gt: [{ $size: '$wishlist' }, 0] },
-                  then: true,
-                  else: false,
-                },
+                ],
+                as: 'wishlist',
               },
             },
-          },
+            {
+              $addFields: {
+                isSaved: {
+                  $gt: [{ $size: '$wishlist' }, 0],
+                },
+              },
+            }
+          ] : [
+            {
+              $addFields: {
+                isSaved: false,
+              },
+            }
+          ]),
+
           {
             $lookup: {
               from: 'userauthregisters',
@@ -341,7 +350,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
           },
           {
             $project: {
-              wishlist: 0,
+              wishlist: 0, // remove internal field
             },
           },
         ],
@@ -352,9 +361,11 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     });
 
     const result = await JobModule.aggregate(aggregationPipeline);
+
     const jobs = result[0]?.jobs || [];
     const total = result[0]?.totalCount[0]?.count || 0;
 
+    console.log('jobs', jobs)
     return successResponse(res, {
       jobs,
       total,

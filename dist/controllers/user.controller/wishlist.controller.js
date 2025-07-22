@@ -90,6 +90,7 @@ const removeFromWishlist = async (req, res, next) => {
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
         const { jobId } = req.body;
+        console.log('userId', userId);
         await wishlist_1.wishlist.findOneAndDelete({ userId, jobId });
         return (0, response_util_1.successResponse)(res, "Removed from wishlist", 200);
     }
@@ -103,6 +104,7 @@ const addToWorkerWishlist = async (req, res, next) => {
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
         const { workerId } = req.body;
+        console.log('userId', userId);
         const exists = await wishlist_1.userWishlist.findOne({ userId, workerId });
         if (exists) {
             return (0, response_util_1.errorResponse)(res, "Already in worker wishlist", 409);

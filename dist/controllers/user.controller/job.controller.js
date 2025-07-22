@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateJobForm = exports.getSingleJobs = exports.getJobs = exports.createJobForm = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const mongoose_1 = __importDefault(require("mongoose"));
+const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
 const job_model_1 = __importDefault(require("../../models/user.models/job.model"));
 const wishlist_1 = require("../../models/user.models/wishlist");
 const cache_1 = __importDefault(require("../../utils/cache"));
@@ -190,27 +192,16 @@ const getJobs = async (req, res, next) => {
     try {
         const { area, city, minBudget, maxBudget, search, date, id, page = 1, limit = 10, } = req.query;
         const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
-        let userId = null;
+        let user;
         if (token) {
-            try {
-                const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-                userId = decoded._id;
-            }
-            catch (error) {
-                // if token is invalid, we treat user as not logged in
-                userId = null;
-            }
+            user = await auth_model_1.default.findOne({ token }).select('_id');
         }
-        const cacheKey = `jobs:${JSON.stringify({
-            area, city, minBudget, maxBudget, search, date, id, page, limit, userId
-        })}`;
-        const cached = cache_1.default.get(cacheKey);
-        if (cached) {
-            return (0, response_util_1.successResponse)(res, cached, 200);
-        }
+        console.log('user', user === null || user === void 0 ? void 0 : user._id);
         const filters = {};
-        if (id === 'true' && userId)
-            filters.createUserId = userId;
+        // if (id === 'true' && userId) filters.createUserId = userId;
+        if (id === 'true' && (user === null || user === void 0 ? void 0 : user._id)) {
+            filters.createUserId = new mongoose_1.default.Types.ObjectId(user._id);
+        }
         if (area)
             filters.area = area;
         if (city)
@@ -251,36 +242,41 @@ const getJobs = async (req, res, next) => {
                     { $sort: { createdAt: -1 } },
                     { $skip: skip },
                     { $limit: Number(limit) },
-                    {
-                        $lookup: {
-                            from: 'wishlists',
-                            let: { jobId: '$_id' },
-                            pipeline: [
-                                {
-                                    $match: {
-                                        $expr: {
-                                            $and: [
-                                                { $eq: ['$jobId', '$$jobId'] },
-                                                { $eq: ['$userId', userId] },
-                                            ],
+                    // ✅ Conditional $lookup if user is logged in
+                    ...((user === null || user === void 0 ? void 0 : user._id) ? [
+                        {
+                            $lookup: {
+                                from: 'Wishlist',
+                                let: { jobId: '$_id' },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ['$jobId', '$$jobId'] },
+                                                    { $eq: ['$userId', user === null || user === void 0 ? void 0 : user._id] }, // ✅ direct value comparison
+                                                ],
+                                            },
                                         },
                                     },
-                                },
-                            ],
-                            as: 'wishlist',
-                        },
-                    },
-                    {
-                        $addFields: {
-                            isSaved: {
-                                $cond: {
-                                    if: { $gt: [{ $size: '$wishlist' }, 0] },
-                                    then: true,
-                                    else: false,
-                                },
+                                ],
+                                as: 'wishlist',
                             },
                         },
-                    },
+                        {
+                            $addFields: {
+                                isSaved: {
+                                    $gt: [{ $size: '$wishlist' }, 0],
+                                },
+                            },
+                        }
+                    ] : [
+                        {
+                            $addFields: {
+                                isSaved: false,
+                            },
+                        }
+                    ]),
                     {
                         $lookup: {
                             from: 'userauthregisters',
@@ -309,7 +305,7 @@ const getJobs = async (req, res, next) => {
                     },
                     {
                         $project: {
-                            wishlist: 0,
+                            wishlist: 0, // remove internal field
                         },
                     },
                 ],
@@ -321,6 +317,7 @@ const getJobs = async (req, res, next) => {
         const result = await job_model_1.default.aggregate(aggregationPipeline);
         const jobs = ((_b = result[0]) === null || _b === void 0 ? void 0 : _b.jobs) || [];
         const total = ((_d = (_c = result[0]) === null || _c === void 0 ? void 0 : _c.totalCount[0]) === null || _d === void 0 ? void 0 : _d.count) || 0;
+        console.log('jobs', jobs);
         return (0, response_util_1.successResponse)(res, {
             jobs,
             total,
