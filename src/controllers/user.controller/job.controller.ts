@@ -279,7 +279,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
           ...(user?._id ? [
             {
               $lookup: {
-                from: 'Wishlist',
+                from: 'wishlists', // ✅ collection name lowercase and plural
                 let: { jobId: '$_id' },
                 pipeline: [
                   {
@@ -287,7 +287,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
                       $expr: {
                         $and: [
                           { $eq: ['$jobId', '$$jobId'] },
-                          { $eq: ['$userId', user?._id] }, // ✅ direct value comparison
+                          { $eq: ['$userId', user._id] }, // ✅ no optional chaining
                         ],
                       },
                     },

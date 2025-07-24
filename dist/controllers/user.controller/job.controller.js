@@ -246,7 +246,7 @@ const getJobs = async (req, res, next) => {
                     ...((user === null || user === void 0 ? void 0 : user._id) ? [
                         {
                             $lookup: {
-                                from: 'Wishlist',
+                                from: 'wishlists', // ✅ collection name lowercase and plural
                                 let: { jobId: '$_id' },
                                 pipeline: [
                                     {
@@ -254,7 +254,7 @@ const getJobs = async (req, res, next) => {
                                             $expr: {
                                                 $and: [
                                                     { $eq: ['$jobId', '$$jobId'] },
-                                                    { $eq: ['$userId', user === null || user === void 0 ? void 0 : user._id] }, // ✅ direct value comparison
+                                                    { $eq: ['$userId', user._id] }, // ✅ no optional chaining
                                                 ],
                                             },
                                         },
