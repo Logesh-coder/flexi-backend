@@ -7,6 +7,7 @@ exports.inActiveUser = exports.getSingleWorker = exports.getWorkers = exports.up
 const axios_1 = __importDefault(require("axios"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const mongoose_1 = __importDefault(require("mongoose"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
 const cache_1 = __importDefault(require("../../utils/cache"));
@@ -407,82 +408,77 @@ exports.updatePssword = updatePssword;
 //   }
 // };
 const getWorkers = async (req, res, next) => {
+    var _a;
     try {
-        const { area, city, minBudget, maxBudget, search, isActive, page = 1, limit = 10, } = req.query;
+        const { search, city, area, page = 1, limit = 10 } = req.query;
+        const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
+        let user;
+        if (token) {
+            user = await auth_model_1.default.findOne({ token }).select('_id');
+        }
         const filters = {};
-        if (typeof isActive === 'undefined') {
-            filters.isActive = true;
+        if (search) {
+            filters.title = { $regex: new RegExp(search, 'i') };
         }
-        else {
-            filters.isActive = isActive === 'true';
-        }
-        if (area)
-            filters.area = area;
         if (city)
             filters.city = city;
-        if (minBudget || maxBudget) {
-            filters.salary = {};
-            if (minBudget)
-                filters.salary.$gte = Number(minBudget);
-            if (maxBudget)
-                filters.salary.$lte = Number(maxBudget);
-        }
-        const skip = (Number(page) - 1) * Number(limit);
-        // ✅ Unique cache key per filter set
-        const cacheKey = `workers:${JSON.stringify({
-            area,
-            city,
-            minBudget,
-            maxBudget,
-            search,
-            isActive,
-            page,
-            limit,
-        })}`;
-        const cached = cache_1.default.get(cacheKey);
-        if (cached) {
-            return (0, response_util_1.successResponse)(res, cached, 200);
-        }
-        const aggregationPipeline = [];
-        if (search) {
-            aggregationPipeline.push({
-                $search: {
-                    index: 'workerSearchIndex',
-                    text: {
-                        query: search,
-                        path: ['domain', 'name'],
-                        fuzzy: {
-                            maxEdits: 1, // 🔁 Reduced from 2 to 1 for better performance
-                            prefixLength: 2, // 🔁 Increased slightly for efficiency
-                        },
-                    },
-                },
-            });
-            aggregationPipeline.push({ $match: filters });
-        }
-        else {
-            aggregationPipeline.push({ $match: filters });
-        }
-        aggregationPipeline.push({ $sort: { createdAt: -1 } }, { $skip: skip }, { $limit: Number(limit) }, {
-            $project: {
-                password: 0,
-                token: 0,
-                __v: 0,
+        if (area)
+            filters.area = area;
+        // 👉 Count total matching documents (for pagination metadata)
+        const totalItems = await auth_model_1.default.countDocuments(filters);
+        const aggregationPipeline = [
+            {
+                $match: filters
             },
-        });
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $skip: (Number(page) - 1) * Number(limit)
+            },
+            {
+                $limit: Number(limit)
+            },
+            {
+                $lookup: {
+                    from: 'userwishlists',
+                    let: { workerId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ['$workerId', '$$workerId'] },
+                                        { $eq: ['$userId', new mongoose_1.default.Types.ObjectId(user === null || user === void 0 ? void 0 : user._id)] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: 'wishlist'
+                }
+            },
+            {
+                $addFields: {
+                    isSaved: { $gt: [{ $size: '$wishlist' }, 0] }
+                }
+            },
+            {
+                $project: {
+                    wishlist: 0
+                }
+            }
+        ];
         const workers = await auth_model_1.default.aggregate(aggregationPipeline);
-        const total = search
-            ? workers.length // count manually when using $search
-            : await auth_model_1.default.countDocuments(filters);
-        const responseData = {
-            workers,
-            total,
-            page: Number(page),
-            pages: Math.ceil(total / Number(limit)),
-        };
-        // ✅ Cache the response for faster access next time
-        cache_1.default.set(cacheKey, responseData);
-        return (0, response_util_1.successResponse)(res, responseData, 200);
+        res.status(200).json({
+            success: true,
+            data: {
+                workers,
+                page: Number(page),
+                totalPages: Math.ceil(totalItems / Number(limit)),
+                totalItems
+            }
+        });
     }
     catch (error) {
         next(error);

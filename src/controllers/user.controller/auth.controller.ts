@@ -2,6 +2,7 @@ import axios from 'axios';
 import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import mongoose from 'mongoose';
 import nodemailer from "nodemailer";
 import userAuth from "../../models/user.models/auth.model";
 import { CustomUser } from "../../type/user-type";
@@ -511,105 +512,79 @@ export const updatePssword = async (
 
 export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const {
-      area,
-      city,
-      minBudget,
-      maxBudget,
-      search,
-      isActive,
-      page = 1,
-      limit = 10,
-    } = req.query;
+    const { search, city, area, page = 1, limit = 10 } = req.query;
+    const token = req.headers['authorization']?.split(' ')[1];
+
+    let user;
+    if (token) {
+      user = await userAuth.findOne({ token }).select('_id');
+    }
 
     const filters: any = {};
-
-    if (typeof isActive === 'undefined') {
-      filters.isActive = true;
-    } else {
-      filters.isActive = isActive === 'true';
-    }
-
-    if (area) filters.area = area;
-    if (city) filters.city = city;
-
-    if (minBudget || maxBudget) {
-      filters.salary = {};
-      if (minBudget) filters.salary.$gte = Number(minBudget);
-      if (maxBudget) filters.salary.$lte = Number(maxBudget);
-    }
-
-    const skip = (Number(page) - 1) * Number(limit);
-
-    // ✅ Unique cache key per filter set
-    const cacheKey = `workers:${JSON.stringify({
-      area,
-      city,
-      minBudget,
-      maxBudget,
-      search,
-      isActive,
-      page,
-      limit,
-    })}`;
-
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      return successResponse(res, cached, 200);
-    }
-
-    const aggregationPipeline: any[] = [];
-
     if (search) {
-      aggregationPipeline.push({
-        $search: {
-          index: 'workerSearchIndex',
-          text: {
-            query: search,
-            path: ['domain', 'name'],
-            fuzzy: {
-              maxEdits: 1,      // 🔁 Reduced from 2 to 1 for better performance
-              prefixLength: 2,  // 🔁 Increased slightly for efficiency
-            },
-          },
-        },
-      });
-
-      aggregationPipeline.push({ $match: filters });
-    } else {
-      aggregationPipeline.push({ $match: filters });
+      filters.title = { $regex: new RegExp(search as string, 'i') };
     }
+    if (city) filters.city = city;
+    if (area) filters.area = area;
 
-    aggregationPipeline.push(
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: Number(limit) },
+    // 👉 Count total matching documents (for pagination metadata)
+    const totalItems = await userAuth.countDocuments(filters);
+
+    const aggregationPipeline: any[] = [
+      {
+        $match: filters
+      },
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $skip: (Number(page) - 1) * Number(limit)
+      },
+      {
+        $limit: Number(limit)
+      },
+      {
+        $lookup: {
+          from: 'userwishlists',
+          let: { workerId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$workerId', '$$workerId'] },
+                    { $eq: ['$userId', new mongoose.Types.ObjectId(user?._id)] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'wishlist'
+        }
+      },
+      {
+        $addFields: {
+          isSaved: { $gt: [{ $size: '$wishlist' }, 0] }
+        }
+      },
       {
         $project: {
-          password: 0,
-          token: 0,
-          __v: 0,
-        },
+          wishlist: 0
+        }
       }
-    );
+    ];
 
     const workers = await userAuth.aggregate(aggregationPipeline);
 
-    const total = search
-      ? workers.length // count manually when using $search
-      : await userAuth.countDocuments(filters);
-
-    const responseData = {
-      workers,
-      total,
-      page: Number(page),
-      pages: Math.ceil(total / Number(limit)),
-    };
-
-    // ✅ Cache the response for faster access next time
-    cache.set(cacheKey, responseData);
-
-    return successResponse(res, responseData, 200);
+    res.status(200).json({
+      success: true,
+      data: {
+        workers,
+        page: Number(page),
+        totalPages: Math.ceil(totalItems / Number(limit)),
+        totalItems
+      }
+    });
   } catch (error) {
     next(error);
   }

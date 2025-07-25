@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
 import userAuth from "../../models/user.models/auth.model";
 import JobModule from "../../models/user.models/job.model";
@@ -62,151 +61,6 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
   }
 }
 
-// export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       area,
-//       city,
-//       minBudget,
-//       maxBudget,
-//       search,
-//       date,
-//       id,
-//       page = 1,
-//       limit = 10,
-//     } = req.query;
-
-//     const token = req.headers['authorization']?.split(' ')[1];
-
-//     let user;
-//     if (token) {
-//       user = await userAuth.findOne({ token }).select('_id');
-//     }
-
-//     const filters: any = {};
-
-//     if (id === 'true') filters.createUserId = user?._id;
-//     if (area) filters.area = area;
-//     if (city) filters.city = city;
-//     if (date) filters.date = date;
-
-//     if (minBudget || maxBudget) {
-//       filters.budget = {};
-//       if (minBudget) filters.budget.$gte = Number(minBudget);
-//       if (maxBudget) filters.budget.$lte = Number(maxBudget);
-//     }
-
-//     const skip = (Number(page) - 1) * Number(limit);
-//     const aggregationPipeline: any[] = [];
-
-//     if (search) {
-//       aggregationPipeline.push({
-//         $search: {
-//           index: 'jobSearchIndex',
-//           text: {
-//             query: search,
-//             path: 'title',
-//             fuzzy: {
-//               maxEdits: 2,
-//               prefixLength: 100,
-//             },
-//           },
-//         },
-//       });
-
-//       // You can still apply filters after search
-//       aggregationPipeline.push({ $match: filters });
-//     } else {
-//       aggregationPipeline.push({ $match: filters });
-//     }
-
-//     aggregationPipeline.push(
-//       { $sort: { createdAt: -1 } },
-//       { $skip: skip },
-//       { $limit: Number(limit) },
-//       {
-//         $lookup: {
-//           from: 'wishlists',
-//           let: { jobId: '$_id' },
-//           pipeline: [
-//             {
-//               $match: {
-//                 $expr: {
-//                   $and: [
-//                     { $eq: ['$jobId', '$$jobId'] },
-//                     { $eq: ['$userId', user?._id] },
-//                   ],
-//                 },
-//               },
-//             },
-//           ],
-//           as: 'wishlist',
-//         },
-//       },
-//       {
-//         $addFields: {
-//           isSaved: {
-//             $cond: {
-//               if: { $gt: [{ $size: '$wishlist' }, 0] },
-//               then: true,
-//               else: false,
-//             },
-//           },
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: 'userauthregisters',
-//           let: { userId: '$createUserId' },
-//           pipeline: [
-//             {
-//               $match: {
-//                 $expr: { $eq: ['$_id', '$$userId'] },
-//               },
-//             },
-//             {
-//               $project: {
-//                 _id: 0,
-//                 mobile: 1,
-//               },
-//             },
-//           ],
-//           as: 'createUser',
-//         },
-//       },
-//       {
-//         $unwind: {
-//           path: '$createUser',
-//           preserveNullAndEmptyArrays: true,
-//         },
-//       },
-//       {
-//         $project: {
-//           wishlist: 0,
-//         },
-//       }
-//     );
-
-//     const jobs = await JobModule.aggregate(aggregationPipeline);
-
-//     // For search, we can't use countDocuments directly
-//     const total = search
-//       ? jobs.length // Approximate, since we can't use $count after $search easily
-//       : await JobModule.countDocuments(filters);
-
-//     return successResponse(res, {
-//       jobs,
-//       total,
-//       page: Number(page),
-//       pages: Math.ceil(total / Number(limit)),
-//     }, 200);
-
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -228,10 +82,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
       user = await userAuth.findOne({ token }).select('_id');
     }
 
-    console.log('user', user?._id)
-
     const filters: any = {};
-    // if (id === 'true' && userId) filters.createUserId = userId;
     if (id === 'true' && user?._id) {
       filters.createUserId = new mongoose.Types.ObjectId(user._id);
     }
@@ -248,26 +99,58 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     const skip = (Number(page) - 1) * Number(limit);
     const aggregationPipeline: any[] = [];
 
+    // 🔍 Add Atlas Search logic with compound filters
     if (search) {
+      const filterConditions: any[] = [];
+
+      if (area) filterConditions.push({ equals: { path: 'area', value: area } });
+      if (city) filterConditions.push({ equals: { path: 'city', value: city } });
+      if (date) filterConditions.push({ equals: { path: 'date', value: date } });
+
+      if (minBudget || maxBudget) {
+        const range: any = { path: 'budget' };
+        if (minBudget) range.gte = Number(minBudget);
+        if (maxBudget) range.lte = Number(maxBudget);
+        filterConditions.push({ range });
+      }
+
+      if (id === 'true' && user?._id) {
+        filterConditions.push({
+          equals: {
+            path: 'createUserId',
+            value: user._id,
+          },
+        });
+      }
+
       aggregationPipeline.push({
         $search: {
           index: 'jobSearchIndex',
-          text: {
-            query: search,
-            path: 'title',
-            fuzzy: {
-              maxEdits: 1,
-              prefixLength: 2,
-            },
+          compound: {
+            must: [
+              {
+                autocomplete: {
+                  query: search,
+                  path: 'title',
+                  fuzzy: {
+                    maxEdits: 1,
+                    prefixLength: 1,
+                  },
+                },
+              },
+            ],
+            filter: filterConditions,
           },
-        },
+        }
+
       });
 
-      aggregationPipeline.push({ $match: filters });
+
     } else {
       aggregationPipeline.push({ $match: filters });
     }
 
+    // 📦 Facet Pipeline
     aggregationPipeline.push({
       $facet: {
         jobs: [
@@ -275,11 +158,10 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
           { $skip: skip },
           { $limit: Number(limit) },
 
-          // ✅ Conditional $lookup if user is logged in
           ...(user?._id ? [
             {
               $lookup: {
-                from: 'wishlists', // ✅ collection name lowercase and plural
+                from: 'wishlists',
                 let: { jobId: '$_id' },
                 pipeline: [
                   {
@@ -287,7 +169,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
                       $expr: {
                         $and: [
                           { $eq: ['$jobId', '$$jobId'] },
-                          { $eq: ['$userId', user._id] }, // ✅ no optional chaining
+                          { $eq: ['$userId', user._id] },
                         ],
                       },
                     },
@@ -302,13 +184,13 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
                   $gt: [{ $size: '$wishlist' }, 0],
                 },
               },
-            }
+            },
           ] : [
             {
               $addFields: {
                 isSaved: false,
               },
-            }
+            },
           ]),
 
           {
@@ -339,7 +221,7 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
           },
           {
             $project: {
-              wishlist: 0, // remove internal field
+              wishlist: 0,
             },
           },
         ],
@@ -354,7 +236,6 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     const jobs = result[0]?.jobs || [];
     const total = result[0]?.totalCount[0]?.count || 0;
 
-    console.log('jobs', jobs)
     return successResponse(res, {
       jobs,
       total,
@@ -366,24 +247,22 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-export const getSingleJobs = async (req: Request, res: Response, next: NextFunction) => {
+export const getSingleJobs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { slug } = req.params;
 
     const token = req.headers['authorization']?.split(' ')[1];
-    let userId: string | null = null;
 
+    let user;
     if (token) {
-      try {
-        const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-        userId = decoded._id;
-      } catch (err) {
-        userId = null;
-      }
+      user = await userAuth.findOne({ token }).select('_id');
     }
 
-    // 🧠 Build a unique cache key per job + user
-    const cacheKey = `job:${slug}:user:${userId || 'guest'}`;
+    const cacheKey = `job:${slug}:user:${user?._id || 'guest'}`;
 
     const cached = cache.get(cacheKey);
     if (cached) {
@@ -399,47 +278,75 @@ export const getSingleJobs = async (req: Request, res: Response, next: NextFunct
     }
 
     let isSaved = false;
-
-    if (userId) {
-      const saved = await wishlist.exists({ userId, jobId: job._id });
+    if (user?._id) {
+      const saved = await wishlist.exists({
+        userId: user._id,
+        jobId: job._id,
+      });
+      console.log(saved)
       isSaved = !!saved;
     }
 
-    const responseData = { ...job, isSaved };
+    const responseData = {
+      ...job,
+      isSaved,
+    };
 
-    cache.set(cacheKey, responseData); // ✅ Cache result for this user + slug
+    cache.set(cacheKey, responseData);
 
     return successResponse(res, responseData, 200);
   } catch (error) {
+    console.error('getSingleJobs error:', error);
     next(error);
   }
 };
 
 // export const getSingleJobs = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
-
 //     const { slug } = req.params;
 
-//     const job = await JobModule.findOne({ slug }).populate('createUserId', 'name email mobile ').lean();
-
-//     if (!job) {
-//       errorResponse(res, 'Job not found', 404);
-//     }
-
 //     const token = req.headers['authorization']?.split(' ')[1];
-//     let isSaved = false;
+//     let userId: string | null = null;
 
 //     if (token) {
-//       const user = await userAuth.findOne({ token }).select('_id');
-//       if (user) {
-//         const saved = await wishlist.exists({ userId: user._id, jobId: job._id });
-//         isSaved = !!saved;
+//       try {
+//         const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+//         userId = decoded._id;
+//       } catch (err) {
+//         userId = null;
 //       }
 //     }
-//     return successResponse(res, { ...job, isSaved }, 200);
 
+//     // 🧠 Build a unique cache key per job + user
+//     const cacheKey = `job:${slug}:user:${userId || 'guest'}`;
+
+//     const cached = cache.get(cacheKey);
+//     if (cached) {
+//       return successResponse(res, cached, 200);
+//     }
+
+//     const job = await JobModule.findOne({ slug })
+//       .populate('createUserId', 'name email mobile')
+//       .lean();
+
+//     if (!job) {
+//       return errorResponse(res, 'Job not found', 404);
+//     }
+
+//     let isSaved = false;
+
+//     if (userId) {
+//       const saved = await wishlist.exists({ userId, jobId: job._id });
+//       isSaved = !!saved;
+//     }
+
+//     const responseData = { ...job, isSaved };
+
+//     cache.set(cacheKey, responseData); // ✅ Cache result for this user + slug
+
+//     return successResponse(res, responseData, 200);
 //   } catch (error) {
-//     next(error)
+//     next(error);
 //   }
 // };
 
