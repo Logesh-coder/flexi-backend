@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import mongoose from 'mongoose';
 import nodemailer from "nodemailer";
 import userAuth from "../../models/user.models/auth.model";
+import { userWishlist } from '../../models/user.models/wishlist';
 import { CustomUser } from "../../type/user-type";
 import cache from "../../utils/cache";
 import { errorResponse, successResponse } from "../../utils/response.util";
@@ -425,91 +426,6 @@ export const updatePssword = async (
   }
 };
 
-// export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       area,
-//       city,
-//       minBudget,
-//       maxBudget,
-//       search,
-//       isActive,
-//       page = 1,
-//       limit = 10,
-//     } = req.query;
-
-//     const filters: any = {};
-
-//     if (typeof isActive === 'undefined') {
-//       filters.isActive = true;
-//     } else {
-//       filters.isActive = isActive === 'true';
-//     }
-
-//     if (area) filters.area = area;
-//     if (city) filters.city = city;
-
-//     if (minBudget || maxBudget) {
-//       filters.salary = {};
-//       if (minBudget) filters.salary.$gte = Number(minBudget);
-//       if (maxBudget) filters.salary.$lte = Number(maxBudget);
-//     }
-
-//     const skip = (Number(page) - 1) * Number(limit);
-
-//     const aggregationPipeline: any[] = [];
-
-//     if (search) {
-//       aggregationPipeline.push({
-//         $search: {
-//           index: 'workerSearchIndex',
-//           text: {
-//             query: search,
-//             path: ['domain', 'name'],
-//             fuzzy: {
-//               maxEdits: 2,
-//               prefixLength: 1,
-//             },
-//           },
-//         },
-//       });
-
-//       // Apply filters after $search
-//       aggregationPipeline.push({ $match: filters });
-//     } else {
-//       aggregationPipeline.push({ $match: filters });
-//     }
-
-//     aggregationPipeline.push(
-//       { $sort: { createdAt: -1 } },
-//       { $skip: skip },
-//       { $limit: Number(limit) },
-//       {
-//         $project: {
-//           password: 0,
-//           token: 0,
-//           __v: 0,
-//         },
-//       }
-//     );
-
-//     const workers = await userAuth.aggregate(aggregationPipeline);
-
-//     const total = search
-//       ? workers.length
-//       : await userAuth.countDocuments(filters);
-
-//     successResponse(res, {
-//       workers,
-//       total,
-//       page: Number(page),
-//       pages: Math.ceil(total / Number(limit)),
-//     }, 200);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { search, city, area, page = 1, limit = 10 } = req.query;
@@ -520,29 +436,43 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
       user = await userAuth.findOne({ token }).select('_id');
     }
 
-    const filters: any = {};
-    if (search) {
-      filters.title = { $regex: new RegExp(search as string, 'i') };
-    }
+    const filters: any = { isActive: true };
     if (city) filters.city = city;
     if (area) filters.area = area;
 
-    // 👉 Count total matching documents (for pagination metadata)
-    const totalItems = await userAuth.countDocuments(filters);
+    const aggregationPipeline: any[] = [];
 
-    const aggregationPipeline: any[] = [
-      {
-        $match: filters
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $skip: (Number(page) - 1) * Number(limit)
-      },
-      {
-        $limit: Number(limit)
-      },
+    // ✅ Step 1: Atlas $search (only if search is provided)
+    if (search) {
+      aggregationPipeline.push({
+        $search: {
+          index: 'userSearchIndex', // Your Atlas Search index name
+          text: {
+            query: 'catering',
+            path: 'domain',
+            fuzzy: {
+              maxEdits: 2,
+              prefixLength: 1,
+            }
+          }
+        }
+      });
+    }
+
+    // ✅ Step 2: Apply filters (city, area)
+    if (Object.keys(filters).length > 0) {
+      aggregationPipeline.push({ $match: filters });
+    }
+
+    // ✅ Step 3: Sort and Paginate
+    aggregationPipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: (Number(page) - 1) * Number(limit) },
+      { $limit: Number(limit) }
+    );
+
+    // ✅ Step 4: Wishlist Lookup
+    aggregationPipeline.push(
       {
         $lookup: {
           from: 'userwishlists',
@@ -572,10 +502,40 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
           wishlist: 0
         }
       }
-    ];
+    );
 
+    // ✅ Execute aggregation
     const workers = await userAuth.aggregate(aggregationPipeline);
 
+    // ✅ Separate count for pagination metadata
+    const countPipeline: any[] = [];
+
+    if (search) {
+      countPipeline.push({
+        $search: {
+          index: 'userSearchIndex',
+          text: {
+            query: search,
+            path: 'domain',
+            fuzzy: {
+              maxEdits: 2,
+              prefixLength: 1,
+            }
+          }
+        }
+      });
+    }
+
+    if (Object.keys(filters).length > 0) {
+      countPipeline.push({ $match: filters });
+    }
+
+    countPipeline.push({ $count: 'total' });
+
+    const countResult = await userAuth.aggregate(countPipeline);
+    const totalItems = countResult[0]?.total || 0;
+
+    // ✅ Send response
     res.status(200).json({
       success: true,
       data: {
@@ -585,6 +545,7 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
         totalItems
       }
     });
+
   } catch (error) {
     next(error);
   }
@@ -593,15 +554,24 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
 export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { slug } = req.params;
+    const token = req.headers['authorization']?.split(' ')[1];
 
-    // 🔐 Unique cache key for this worker
     const cacheKey = `worker:${slug}`;
 
+    // Optional: skip cache if you want dynamic wishlist status
     const cached = cache.get(cacheKey);
-    if (cached) {
+    if (cached && !token) {
       return successResponse(res, cached, 200);
     }
 
+    // 🔐 Get logged-in user (if any)
+    let userId;
+    if (token) {
+      const user = await userAuth.findOne({ token }).select('_id');
+      if (user) userId = user._id;
+    }
+
+    // 🧾 Get worker details
     const findUser = await userAuth
       .findOne({ slug })
       .select('-password -__v -token');
@@ -610,10 +580,29 @@ export const getSingleWorker = async (req: CustomRequest, res: Response, next: N
       return errorResponse(res, 'worker not found', 500);
     }
 
-    // ✅ Store in cache
-    cache.set(cacheKey, findUser);
+    // ❤️ Check if this worker is in the user's wishlist
+    let isSaved = false;
+    if (userId) {
+      const wishlistItem = await userWishlist.findOne({
+        userId,
+        workerId: findUser._id
+      });
 
-    return successResponse(res, findUser, 200);
+      isSaved = !!wishlistItem;
+    }
+
+    // ✅ Add isSaved field to response
+    const result = {
+      ...findUser.toObject(),
+      isSaved
+    };
+
+    // ✅ Cache the result only if token is not present (so result is universal)
+    if (!token) {
+      cache.set(cacheKey, result);
+    }
+
+    return successResponse(res, result, 200);
   } catch (error) {
     next(error);
   }
@@ -623,18 +612,51 @@ export const getSingleWorker = async (req: CustomRequest, res: Response, next: N
 //   try {
 //     const { slug } = req.params;
 
-//     const findUser = await userAuth.findOne({ slug: slug }).select('-password -__v -token')
+//     // 🔐 Unique cache key for this worker
+//     const cacheKey = `worker:${slug}`;
+
+//     const cached = cache.get(cacheKey);
+//     if (cached) {
+//       return successResponse(res, cached, 200);
+//     }
+
+//     const findUser = await userAuth
+//       .findOne({ slug })
+//       .select('-password -__v -token');
 
 //     if (!findUser) {
 //       return errorResponse(res, 'worker not found', 500);
 //     }
 
-//     return successResponse(res, findUser, 200);
+//     console.log('findUser', findUser?._id)
+//     const userId = findUser?._id
 
+//     let isSaved = false;
+//     if (userId) {
+//       const wishlistItem = await userWishlist.findOne({
+//         userId,
+//         workerId: findUser._id
+//       });
+
+//       console.log(wishlistItem)
+
+//       isSaved = !!wishlistItem;
+//     }
+
+//     // ✅ Add isSaved field to response
+//     const result = {
+//       ...findUser.toObject(),
+
+//     };
+
+//     // ✅ Store in cache
+//     cache.set(cacheKey, findUser);
+
+//     return successResponse(res, result, 200);
 //   } catch (error) {
-//     next(error)
+//     next(error);
 //   }
-// }
+// };
 
 export const inActiveUser = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {

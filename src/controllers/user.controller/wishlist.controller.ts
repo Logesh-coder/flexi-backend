@@ -186,8 +186,6 @@ export const addToWorkerWishlist = async (req: CustomRequest, res: Response, nex
         const userId = req.user?._id;
         const { workerId } = req.body;
 
-        console.log('userId', userId)
-
         const exists = await userWishlist.findOne({ userId, workerId });
 
         if (exists) {

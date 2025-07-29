@@ -10,6 +10,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const auth_model_1 = __importDefault(require("../../models/user.models/auth.model"));
+const wishlist_1 = require("../../models/user.models/wishlist");
 const cache_1 = __importDefault(require("../../utils/cache"));
 const response_util_1 = require("../../utils/response.util");
 const handleGoogleCallback = async (req, res) => {
@@ -335,80 +336,8 @@ const updatePssword = async (req, res, next) => {
     }
 };
 exports.updatePssword = updatePssword;
-// export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       area,
-//       city,
-//       minBudget,
-//       maxBudget,
-//       search,
-//       isActive,
-//       page = 1,
-//       limit = 10,
-//     } = req.query;
-//     const filters: any = {};
-//     if (typeof isActive === 'undefined') {
-//       filters.isActive = true;
-//     } else {
-//       filters.isActive = isActive === 'true';
-//     }
-//     if (area) filters.area = area;
-//     if (city) filters.city = city;
-//     if (minBudget || maxBudget) {
-//       filters.salary = {};
-//       if (minBudget) filters.salary.$gte = Number(minBudget);
-//       if (maxBudget) filters.salary.$lte = Number(maxBudget);
-//     }
-//     const skip = (Number(page) - 1) * Number(limit);
-//     const aggregationPipeline: any[] = [];
-//     if (search) {
-//       aggregationPipeline.push({
-//         $search: {
-//           index: 'workerSearchIndex',
-//           text: {
-//             query: search,
-//             path: ['domain', 'name'],
-//             fuzzy: {
-//               maxEdits: 2,
-//               prefixLength: 1,
-//             },
-//           },
-//         },
-//       });
-//       // Apply filters after $search
-//       aggregationPipeline.push({ $match: filters });
-//     } else {
-//       aggregationPipeline.push({ $match: filters });
-//     }
-//     aggregationPipeline.push(
-//       { $sort: { createdAt: -1 } },
-//       { $skip: skip },
-//       { $limit: Number(limit) },
-//       {
-//         $project: {
-//           password: 0,
-//           token: 0,
-//           __v: 0,
-//         },
-//       }
-//     );
-//     const workers = await userAuth.aggregate(aggregationPipeline);
-//     const total = search
-//       ? workers.length
-//       : await userAuth.countDocuments(filters);
-//     successResponse(res, {
-//       workers,
-//       total,
-//       page: Number(page),
-//       pages: Math.ceil(total / Number(limit)),
-//     }, 200);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 const getWorkers = async (req, res, next) => {
-    var _a;
+    var _a, _b;
     try {
         const { search, city, area, page = 1, limit = 10 } = req.query;
         const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
@@ -416,60 +345,88 @@ const getWorkers = async (req, res, next) => {
         if (token) {
             user = await auth_model_1.default.findOne({ token }).select('_id');
         }
-        const filters = {};
-        if (search) {
-            filters.title = { $regex: new RegExp(search, 'i') };
-        }
+        const filters = { isActive: true };
         if (city)
             filters.city = city;
         if (area)
             filters.area = area;
-        // 👉 Count total matching documents (for pagination metadata)
-        const totalItems = await auth_model_1.default.countDocuments(filters);
-        const aggregationPipeline = [
-            {
-                $match: filters
-            },
-            {
-                $sort: { createdAt: -1 }
-            },
-            {
-                $skip: (Number(page) - 1) * Number(limit)
-            },
-            {
-                $limit: Number(limit)
-            },
-            {
-                $lookup: {
-                    from: 'userwishlists',
-                    let: { workerId: '$_id' },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ['$workerId', '$$workerId'] },
-                                        { $eq: ['$userId', new mongoose_1.default.Types.ObjectId(user === null || user === void 0 ? void 0 : user._id)] }
-                                    ]
-                                }
+        const aggregationPipeline = [];
+        // ✅ Step 1: Atlas $search (only if search is provided)
+        if (search) {
+            aggregationPipeline.push({
+                $search: {
+                    index: 'userSearchIndex', // Your Atlas Search index name
+                    text: {
+                        query: 'catering',
+                        path: 'domain',
+                        fuzzy: {
+                            maxEdits: 2,
+                            prefixLength: 1,
+                        }
+                    }
+                }
+            });
+        }
+        // ✅ Step 2: Apply filters (city, area)
+        if (Object.keys(filters).length > 0) {
+            aggregationPipeline.push({ $match: filters });
+        }
+        // ✅ Step 3: Sort and Paginate
+        aggregationPipeline.push({ $sort: { createdAt: -1 } }, { $skip: (Number(page) - 1) * Number(limit) }, { $limit: Number(limit) });
+        // ✅ Step 4: Wishlist Lookup
+        aggregationPipeline.push({
+            $lookup: {
+                from: 'userwishlists',
+                let: { workerId: '$_id' },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ['$workerId', '$$workerId'] },
+                                    { $eq: ['$userId', new mongoose_1.default.Types.ObjectId(user === null || user === void 0 ? void 0 : user._id)] }
+                                ]
                             }
                         }
-                    ],
-                    as: 'wishlist'
-                }
-            },
-            {
-                $addFields: {
-                    isSaved: { $gt: [{ $size: '$wishlist' }, 0] }
-                }
-            },
-            {
-                $project: {
-                    wishlist: 0
-                }
+                    }
+                ],
+                as: 'wishlist'
             }
-        ];
+        }, {
+            $addFields: {
+                isSaved: { $gt: [{ $size: '$wishlist' }, 0] }
+            }
+        }, {
+            $project: {
+                wishlist: 0
+            }
+        });
+        // ✅ Execute aggregation
         const workers = await auth_model_1.default.aggregate(aggregationPipeline);
+        // ✅ Separate count for pagination metadata
+        const countPipeline = [];
+        if (search) {
+            countPipeline.push({
+                $search: {
+                    index: 'userSearchIndex',
+                    text: {
+                        query: search,
+                        path: 'domain',
+                        fuzzy: {
+                            maxEdits: 2,
+                            prefixLength: 1,
+                        }
+                    }
+                }
+            });
+        }
+        if (Object.keys(filters).length > 0) {
+            countPipeline.push({ $match: filters });
+        }
+        countPipeline.push({ $count: 'total' });
+        const countResult = await auth_model_1.default.aggregate(countPipeline);
+        const totalItems = ((_b = countResult[0]) === null || _b === void 0 ? void 0 : _b.total) || 0;
+        // ✅ Send response
         res.status(200).json({
             success: true,
             data: {
@@ -486,23 +443,46 @@ const getWorkers = async (req, res, next) => {
 };
 exports.getWorkers = getWorkers;
 const getSingleWorker = async (req, res, next) => {
+    var _a;
     try {
         const { slug } = req.params;
-        // 🔐 Unique cache key for this worker
+        const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
         const cacheKey = `worker:${slug}`;
+        // Optional: skip cache if you want dynamic wishlist status
         const cached = cache_1.default.get(cacheKey);
-        if (cached) {
+        if (cached && !token) {
             return (0, response_util_1.successResponse)(res, cached, 200);
         }
+        // 🔐 Get logged-in user (if any)
+        let userId;
+        if (token) {
+            const user = await auth_model_1.default.findOne({ token }).select('_id');
+            if (user)
+                userId = user._id;
+        }
+        // 🧾 Get worker details
         const findUser = await auth_model_1.default
             .findOne({ slug })
             .select('-password -__v -token');
         if (!findUser) {
             return (0, response_util_1.errorResponse)(res, 'worker not found', 500);
         }
-        // ✅ Store in cache
-        cache_1.default.set(cacheKey, findUser);
-        return (0, response_util_1.successResponse)(res, findUser, 200);
+        // ❤️ Check if this worker is in the user's wishlist
+        let isSaved = false;
+        if (userId) {
+            const wishlistItem = await wishlist_1.userWishlist.findOne({
+                userId,
+                workerId: findUser._id
+            });
+            isSaved = !!wishlistItem;
+        }
+        // ✅ Add isSaved field to response
+        const result = Object.assign(Object.assign({}, findUser.toObject()), { isSaved });
+        // ✅ Cache the result only if token is not present (so result is universal)
+        if (!token) {
+            cache_1.default.set(cacheKey, result);
+        }
+        return (0, response_util_1.successResponse)(res, result, 200);
     }
     catch (error) {
         next(error);
@@ -512,15 +492,40 @@ exports.getSingleWorker = getSingleWorker;
 // export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
 //   try {
 //     const { slug } = req.params;
-//     const findUser = await userAuth.findOne({ slug: slug }).select('-password -__v -token')
+//     // 🔐 Unique cache key for this worker
+//     const cacheKey = `worker:${slug}`;
+//     const cached = cache.get(cacheKey);
+//     if (cached) {
+//       return successResponse(res, cached, 200);
+//     }
+//     const findUser = await userAuth
+//       .findOne({ slug })
+//       .select('-password -__v -token');
 //     if (!findUser) {
 //       return errorResponse(res, 'worker not found', 500);
 //     }
-//     return successResponse(res, findUser, 200);
+//     console.log('findUser', findUser?._id)
+//     const userId = findUser?._id
+//     let isSaved = false;
+//     if (userId) {
+//       const wishlistItem = await userWishlist.findOne({
+//         userId,
+//         workerId: findUser._id
+//       });
+//       console.log(wishlistItem)
+//       isSaved = !!wishlistItem;
+//     }
+//     // ✅ Add isSaved field to response
+//     const result = {
+//       ...findUser.toObject(),
+//     };
+//     // ✅ Store in cache
+//     cache.set(cacheKey, findUser);
+//     return successResponse(res, result, 200);
 //   } catch (error) {
-//     next(error)
+//     next(error);
 //   }
-// }
+// };
 const inActiveUser = async (req, res, next) => {
     try {
         const { id } = req.params;
