@@ -355,14 +355,30 @@ const getWorkers = async (req, res, next) => {
         if (search) {
             aggregationPipeline.push({
                 $search: {
-                    index: 'userSearchIndex', // Your Atlas Search index name
-                    text: {
-                        query: 'catering',
-                        path: 'domain',
-                        fuzzy: {
-                            maxEdits: 2,
-                            prefixLength: 1,
-                        }
+                    index: 'userSearchIndex',
+                    compound: {
+                        should: [
+                            {
+                                autocomplete: {
+                                    query: search,
+                                    path: 'domain',
+                                    fuzzy: {
+                                        maxEdits: 1,
+                                        prefixLength: 1
+                                    }
+                                }
+                            },
+                            {
+                                autocomplete: {
+                                    query: search,
+                                    path: 'name',
+                                    fuzzy: {
+                                        maxEdits: 1,
+                                        prefixLength: 1
+                                    }
+                                }
+                            }
+                        ]
                     }
                 }
             });
@@ -409,13 +425,29 @@ const getWorkers = async (req, res, next) => {
             countPipeline.push({
                 $search: {
                     index: 'userSearchIndex',
-                    text: {
-                        query: search,
-                        path: 'domain',
-                        fuzzy: {
-                            maxEdits: 2,
-                            prefixLength: 1,
-                        }
+                    compound: {
+                        should: [
+                            {
+                                autocomplete: {
+                                    query: search,
+                                    path: 'domain',
+                                    fuzzy: {
+                                        maxEdits: 1,
+                                        prefixLength: 1
+                                    }
+                                }
+                            },
+                            {
+                                autocomplete: {
+                                    query: search,
+                                    path: 'name',
+                                    fuzzy: {
+                                        maxEdits: 1,
+                                        prefixLength: 1
+                                    }
+                                }
+                            }
+                        ]
                     }
                 }
             });
@@ -489,43 +521,6 @@ const getSingleWorker = async (req, res, next) => {
     }
 };
 exports.getSingleWorker = getSingleWorker;
-// export const getSingleWorker = async (req: CustomRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { slug } = req.params;
-//     // 🔐 Unique cache key for this worker
-//     const cacheKey = `worker:${slug}`;
-//     const cached = cache.get(cacheKey);
-//     if (cached) {
-//       return successResponse(res, cached, 200);
-//     }
-//     const findUser = await userAuth
-//       .findOne({ slug })
-//       .select('-password -__v -token');
-//     if (!findUser) {
-//       return errorResponse(res, 'worker not found', 500);
-//     }
-//     console.log('findUser', findUser?._id)
-//     const userId = findUser?._id
-//     let isSaved = false;
-//     if (userId) {
-//       const wishlistItem = await userWishlist.findOne({
-//         userId,
-//         workerId: findUser._id
-//       });
-//       console.log(wishlistItem)
-//       isSaved = !!wishlistItem;
-//     }
-//     // ✅ Add isSaved field to response
-//     const result = {
-//       ...findUser.toObject(),
-//     };
-//     // ✅ Store in cache
-//     cache.set(cacheKey, findUser);
-//     return successResponse(res, result, 200);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 const inActiveUser = async (req, res, next) => {
     try {
         const { id } = req.params;

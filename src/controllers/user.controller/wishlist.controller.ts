@@ -236,6 +236,7 @@ export const getWorkerWishlist = async (req: CustomRequest, res: Response, next:
                     slug: '$workerDetails.slug',
                     salary: '$workerDetails.salary',
                     domain: '$workerDetails.domain',
+                    isSaved: { $literal: true },
                 },
             },
             {

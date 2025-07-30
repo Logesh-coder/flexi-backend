@@ -216,6 +216,7 @@ const getWorkerWishlist = async (req, res, next) => {
                     slug: '$workerDetails.slug',
                     salary: '$workerDetails.salary',
                     domain: '$workerDetails.domain',
+                    isSaved: { $literal: true },
                 },
             },
             {
