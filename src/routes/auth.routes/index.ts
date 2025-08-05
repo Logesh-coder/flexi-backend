@@ -12,6 +12,8 @@ router.get('/google', (_req, res) => {
     res.redirect(url);
 });
 
+
+
 router.get('/google/callback', handleGoogleCallback);
 
 router.get('/google/start', (req, res) => {
