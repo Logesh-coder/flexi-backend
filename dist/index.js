@@ -19,7 +19,7 @@ dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8000;
 app.use((0, compression_1.default)());
-const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
+const allowedOrigins = ['https://flexi-web-sigma.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'https://www.flexyjob.in'];
 const corsOptions = {
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
