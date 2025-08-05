@@ -428,7 +428,7 @@ export const updatePssword = async (
 
 export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { search, city, area, page = 1, limit = 10 } = req.query;
+    const { search, city, area, page = 1, limit = 10, isActive } = req.query;
     const token = req.headers['authorization']?.split(' ')[1];
 
     let user;
@@ -436,9 +436,15 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
       user = await userAuth.findOne({ token }).select('_id');
     }
 
-    const filters: any = { isActive: true };
+    const filters: any = {};
     if (city) filters.city = city;
     if (area) filters.area = area;
+
+    if (typeof isActive === 'string') {
+      if (isActive.toLowerCase() === 'true') filters.isActive = true;
+      else if (isActive.toLowerCase() === 'false') filters.isActive = false;
+    }
+
 
     const aggregationPipeline: any[] = [];
 

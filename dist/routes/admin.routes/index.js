@@ -18,5 +18,7 @@ router.put('/location/:cityId', auth_1.adminAuthenticate, location_controller_1.
 router.delete('/location/:cityId', auth_1.adminAuthenticate, location_controller_1.deleteLocation);
 router.get('/help-support', auth_1.adminAuthenticate, help_controller_1.getAllHelpSupport);
 router.patch('/inActive/:id', auth_1.adminAuthenticate, auth_controller_2.inActiveUser);
+router.patch('/job/status-toggle/:jobId', auth_1.adminAuthenticate, job_controller_1.statusToggle);
+console.log('inner job');
 exports.default = router;
 //# sourceMappingURL=index.js.map

@@ -339,17 +339,23 @@ exports.updatePssword = updatePssword;
 const getWorkers = async (req, res, next) => {
     var _a, _b;
     try {
-        const { search, city, area, page = 1, limit = 10 } = req.query;
+        const { search, city, area, page = 1, limit = 10, isActive } = req.query;
         const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
         let user;
         if (token) {
             user = await auth_model_1.default.findOne({ token }).select('_id');
         }
-        const filters = { isActive: true };
+        const filters = {};
         if (city)
             filters.city = city;
         if (area)
             filters.area = area;
+        if (typeof isActive === 'string') {
+            if (isActive.toLowerCase() === 'true')
+                filters.isActive = true;
+            else if (isActive.toLowerCase() === 'false')
+                filters.isActive = false;
+        }
         const aggregationPipeline = [];
         // ✅ Step 1: Atlas $search (only if search is provided)
         if (search) {

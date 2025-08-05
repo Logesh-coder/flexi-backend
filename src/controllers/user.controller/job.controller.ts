@@ -7,7 +7,6 @@ import cache from "../../utils/cache";
 import { errorResponse, successResponse } from "../../utils/response.util";
 import { CustomRequest } from "./auth.controller";
 
-
 export const createJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { title, description, budget, date, durationStartTime, durationEndTime, area, city, landMark, contact } = req.body
@@ -27,15 +26,25 @@ export const createJobForm = async (req: CustomRequest, res: Response, next: Nex
       return `${day}-${month}-${year}`;
     })();
 
-    const generateSlug = (text: string) => {
-      return text
+    const generateUniqueSlug = async (title: string) => {
+      let baseSlug = title
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
+
+      let slug = baseSlug;
+      let counter = 1;
+
+      // Check for slug existence
+      while (await JobModule.findOne({ slug })) {
+        slug = `${baseSlug}-${counter++}`;
+      }
+
+      return slug;
     };
 
-    const slug = generateSlug(title);
+    const slug = await generateUniqueSlug(title);
 
     const newJob = new JobModule({
       title,
@@ -83,6 +92,11 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     }
 
     const filters: any = {};
+
+    if (!req.baseUrl.includes('/admin')) {
+      filters.isActive = true;
+    }
+
     if (id === 'true' && user?._id) {
       filters.createUserId = new mongoose.Types.ObjectId(user._id);
     }
@@ -301,55 +315,6 @@ export const getSingleJobs = async (
   }
 };
 
-// export const getSingleJobs = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { slug } = req.params;
-
-//     const token = req.headers['authorization']?.split(' ')[1];
-//     let userId: string | null = null;
-
-//     if (token) {
-//       try {
-//         const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-//         userId = decoded._id;
-//       } catch (err) {
-//         userId = null;
-//       }
-//     }
-
-//     // 🧠 Build a unique cache key per job + user
-//     const cacheKey = `job:${slug}:user:${userId || 'guest'}`;
-
-//     const cached = cache.get(cacheKey);
-//     if (cached) {
-//       return successResponse(res, cached, 200);
-//     }
-
-//     const job = await JobModule.findOne({ slug })
-//       .populate('createUserId', 'name email mobile')
-//       .lean();
-
-//     if (!job) {
-//       return errorResponse(res, 'Job not found', 404);
-//     }
-
-//     let isSaved = false;
-
-//     if (userId) {
-//       const saved = await wishlist.exists({ userId, jobId: job._id });
-//       isSaved = !!saved;
-//     }
-
-//     const responseData = { ...job, isSaved };
-
-//     cache.set(cacheKey, responseData); // ✅ Cache result for this user + slug
-
-//     return successResponse(res, responseData, 200);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 export const updateJobForm = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { slug } = req.params;
@@ -405,6 +370,30 @@ export const updateJobForm = async (req: CustomRequest, res: Response, next: Nex
     }
 
     return successResponse(res, updatedJob, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const statusToggle = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await JobModule.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    job.isActive = !job.isActive;
+    await job.save();
+
+    return res.status(200).json({
+      message: `Job status changed to ${job.isActive ? 'active' : 'inactive'}`,
+      updatedJob: job
+    });
+
   } catch (error) {
     next(error);
   }
