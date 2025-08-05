@@ -428,7 +428,7 @@ export const updatePssword = async (
 
 export const getWorkers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { search, city, area, page = 1, limit = 10, isActive } = req.query;
+    const { search, city, area, page = 1, limit = 10, isActive = 'true' } = req.query;
     const token = req.headers['authorization']?.split(' ')[1];
 
     let user;
